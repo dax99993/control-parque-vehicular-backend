@@ -1,0 +1,16 @@
+version: "3.7"
+
+services:
+
+  postgres:
+
+    container_name: 'control-parque-vehicular-db'
+    image: 'postgres:11.2'
+    restart: 'always'
+    ports:
+      - '5432:5432' 
+    environment:
+      - 'POSTGRES_USER=username'
+      - 'POSTGRES_DB=cpv'
+      - 'POSTGRES_PASSWORD=password'
+      
