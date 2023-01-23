@@ -1,4 +1,6 @@
-mod user;
+mod models;
+
+use models::user;
 
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use std::sync::Mutex;
@@ -37,7 +39,7 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     let database_url = std::env::var("DATABASE_URL").unwrap();
     println!("Database url: {}", database_url);
-    let port = std::env::var("PORT").unwrap_or("8080".to_string());
+    let port = std::env::var("API_PORT").unwrap_or("8080".to_string());
     let address = format!("127.0.0.1:{port}");
 
     let counter = web::Data::new(AppStateWithCounter {
@@ -53,7 +55,8 @@ async fn main() -> std::io::Result<()> {
             .route("/hey", web::get().to(manual_hello))
             .route("/", web::get().to(index))
     })
-    .bind(address)?
+    .bind(address)
+    .unwrap_or_else(|err| panic!("Couldn't start the server in port {} {:?}", port, err))
     .run()
     .await
 }
