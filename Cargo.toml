@@ -4,15 +4,27 @@ version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "control-parque-vehicular"
 
 [dependencies]
 actix-web = "4.2.1"
+anyhow = "1.0.69"
 chrono = { version = "0.4.23", features = ["serde"] }
+config = "0.13.3"
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 jsonwebtoken = "8.2.0"
 nonblock-logger = { version = "0.2.2", features = ["color", "dbg"] }
+secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.152", features = ["derive"] }
+serde-aux = "4.1.2"
 serde_json = "1.0.91"
 sqlx = { version = "0.6.2", features = ["chrono", "postgres", "uuid", "runtime-actix-rustls", "macros"] }
+tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 uuid = { version = "1.2.2", features = ["v4", "serde"] }
+validator = "0.16.0"
