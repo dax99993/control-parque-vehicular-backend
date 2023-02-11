@@ -1,4 +1,4 @@
-
+use crate::email_client::EmailClient;
 use secrecy::{Secret, ExposeSecret};
 use serde_aux::prelude::deserialize_number_from_string;
 //use sqlx::ConnectOptions;
@@ -9,7 +9,7 @@ use sqlx::postgres::{PgSslMode, PgConnectOptions};
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
-    // email client
+    pub email_client: EmailClientSettings// email client
     // shared cache redis
 }
 
@@ -22,6 +22,24 @@ pub struct ApplicationSettings {
     pub base_url: String,
     pub hmac_secret: Secret<String>,
 }
+
+#[derive(serde::Deserialize, Clone)]
+pub struct EmailClientSettings {
+    pub smtp_address: String,
+    pub username: String,
+    pub password: Secret<String>,
+}
+
+impl EmailClientSettings {
+    pub fn client(self) -> EmailClient {
+        EmailClient::new(
+            self.smtp_address,
+            self.username,
+            self.password,
+        )
+    }
+}
+
 
 
 #[derive(serde::Deserialize, Clone)]

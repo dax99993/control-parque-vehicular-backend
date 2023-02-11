@@ -19,6 +19,8 @@ config = "0.13.3"
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 jsonwebtoken = "8.2.0"
+lettre = "0.10.2"
+lettre_email = "0.9.4"
 nonblock-logger = { version = "0.2.2", features = ["color", "dbg"] }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.152", features = ["derive"] }

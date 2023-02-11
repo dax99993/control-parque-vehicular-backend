@@ -1,15 +1,11 @@
-use chrono::{NaiveDateTime};
+use chrono::NaiveDateTime;
 use serde::{Serialize, Deserialize};
+//use super::department::Department;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Department {
-    pub id: i32,
-    pub name: String,
-}
 
 #[derive(sqlx::Type, Serialize, Deserialize, Debug, Clone)]
-#[sqlx(type_name = "user_status", rename_all = "lowercase")]
-pub enum UserStatus {
+#[sqlx(type_name = "user_role", rename_all = "lowercase")]
+pub enum UserRole {
     Normal,
     Admin,
 }
@@ -20,13 +16,14 @@ pub struct User {
     pub first_name: String,
     pub last_name: String,
     pub email: String,
-    pub password: String,
+    pub password_hash: String,
     pub employee_number: Option<i16>,
     pub active: bool,
+    pub verified: bool,
     pub picture: String,
     //pub department: Department,
     pub department: Option<i32>,
-    pub status: UserStatus,
+    pub role: UserRole,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -46,8 +43,25 @@ impl User {
     */
 
     pub fn to_admin(&mut self) {
-        self.status = UserStatus::Admin;
+        self.role = UserRole::Admin;
     }
      
+}
+
+
+#[derive(Debug, Serialize)]
+pub struct RegisterUser {
+    first_name: String,
+    last_name: String,
+    email: String,
+    password: String,
+    password_verify: String,
+    //picture: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LoginUser {
+    email: String,
+    password: String
 }
 
