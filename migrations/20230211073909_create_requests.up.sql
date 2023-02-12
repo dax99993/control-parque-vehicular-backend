@@ -3,9 +3,9 @@ CREATE TYPE request_state AS ENUM ('approved', 'denied', 'pending', 'finished');
 
 CREATE TABLE IF NOT EXISTS requests 
 (
-    id UUID NOT NULL PRIMARY KEY,
-    user_id uuid NULL REFERENCES users(id) ON DELETE SET NULL,
-    vehicule_id uuid NULL REFERENCES vehicules(id) ON DELETE SET NULL,
+    request_id UUID NOT NULL PRIMARY KEY,
+    user_id uuid NULL REFERENCES users(user_id) ON DELETE SET NULL,
+    vehicule_id uuid NULL REFERENCES vehicules(vehicule_id) ON DELETE SET NULL,
     state request_state NOT NULL DEFAULT 'pending',
     activity_desc TEXT NOT NULL DEFAULT '',
     activity_comment TEXT NOT NULL DEFAULT '',

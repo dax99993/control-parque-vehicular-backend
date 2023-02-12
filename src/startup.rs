@@ -4,11 +4,12 @@ use std::net::TcpListener;
 use crate::configuration::{Settings, DatabaseSettings};
 use actix_web::{web, App, HttpServer};
 use actix_web::dev::Server;
-//use secrecy::{Secret, ExposeSecret};
+use secrecy::{Secret, ExposeSecret};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
-use crate::routes::health_check;
+use crate::routes::{health_check, register_user, login_user, logout_user};
+use tracing_actix_web::TracingLogger;
 
 
 pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
@@ -45,7 +46,7 @@ impl Application {
                          connection_pool,
                          //email_client,
                          //configuration.application.base_url,
-                         //configuration.application.hmac_secret,
+                         configuration.application.jwt_secret,
                          //configuration.redis_uri,
                     ).await?;
         Ok( Self { port, server } )
@@ -66,15 +67,17 @@ async fn run(
     db_pool: PgPool,
     //email_client: ,
     //base_url: String,
-    //hmac_secret: Secret<String>,
+    jwt_secret: Secret<String>,
     //redis_uri: Secret<String>,
 ) -> Result<Server, anyhow::Error> {
     // Wrap data into smart pointer actix_web
     let db_pool = web::Data::new(db_pool);
+    let _secret_key = jwt_secret.expose_secret();
 
     // Create the server
     let server = HttpServer::new(move || {
         App::new()
+            .wrap(TracingLogger::default())
             // Add API service
             .service(
                 web::scope("/api")
@@ -86,6 +89,9 @@ async fn run(
                     .route("/login", web::get().to())
                     .route("/login", web::post().to())
                     */
+                    .route("/auth/register", web::post().to(register_user))
+                    .route("/auth/login", web::post().to(login_user))
+                    .route("/auth/logout", web::post().to(logout_user))
             )
             // Add all request extra data
             .app_data(db_pool.clone())

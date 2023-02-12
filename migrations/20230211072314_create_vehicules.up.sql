@@ -3,7 +3,7 @@ CREATE TYPE vehicule_state AS ENUM ('active', 'occupied', 'maintenance');
 
 CREATE TABLE IF NOT EXISTS vehicules
 (
-    id uuid NOT NULL PRIMARY KEY,
+    vehicule_id uuid NOT NULL PRIMARY KEY,
     branch TEXT NOT NULL,
     model TEXT NOT NULL,
     year SMALLINT NOT NULL,

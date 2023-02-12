@@ -1,9 +1,6 @@
-#[macro_use]
-extern crate nonblock_logger;
-
-
 use control_parque_vehicular::configuration::get_configuration;
 use control_parque_vehicular::startup::Application;
+use control_parque_vehicular::telemetry::{init_subscriber, get_subscriber};
 
 
 
@@ -11,8 +8,10 @@ use control_parque_vehicular::startup::Application;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Logger
-    std::env::set_var("RUST_LOG", "debug");
-    env_logger::init();
+    //std::env::set_var("RUST_LOG", "debug");
+    //env_logger::init();
+    let subscriber = get_subscriber("contro-parque-vehicular".into(), "info".into(), std::io::stdout);
+    init_subscriber(subscriber);
     
     // Get Environmental variables
     let configuration = get_configuration().expect("Failed to read configuration.");

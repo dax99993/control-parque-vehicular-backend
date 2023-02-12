@@ -1,7 +1,7 @@
 use crate::email_client::EmailClient;
 use secrecy::{Secret, ExposeSecret};
 use serde_aux::prelude::deserialize_number_from_string;
-//use sqlx::ConnectOptions;
+use sqlx::ConnectOptions;
 use sqlx::postgres::{PgSslMode, PgConnectOptions};
 
 
@@ -20,7 +20,7 @@ pub struct ApplicationSettings {
     pub port: u16,
     pub host: String,
     pub base_url: String,
-    pub hmac_secret: Secret<String>,
+    pub jwt_secret: Secret<String>,
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -71,7 +71,7 @@ impl DatabaseSettings {
 
     pub fn with_db(&self) -> PgConnectOptions {
         let mut options = self.without_db().database(&self.database_name);
-        // options.log_statement(tracing::log::LevelFilter::Trace)
+        options.log_statements(tracing::log::LevelFilter::Trace);
 
         options
     }

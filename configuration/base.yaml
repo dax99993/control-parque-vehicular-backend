@@ -1,13 +1,16 @@
 application:
   port: 8000
-  hmac_secret: "super-long-and-secret-random-key-needed-to-verify-message-integrity"
+  jwt_secret: "super-long-and-secret-random-key-needed-to-verify-message-integrity"
 database:
   host: "127.0.0.1"
   port: 5432
   username: "postgres"
   password: "password"
-  database_name: "newsletter"
+  database_name: "cpv"
 email_client:
+  smtp_address: "localhost"
+  username: "username"
+  password: "password"
   base_url: "localhost"
   sender_email: "test@gmail.com"
   authorization_token: "my-secret-token"

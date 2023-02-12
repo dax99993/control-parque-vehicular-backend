@@ -1,6 +1,8 @@
 use chrono::NaiveDateTime;
 use serde::{Serialize, Deserialize};
 //use super::department::Department;
+use validator::{Validate, ValidationError};
+use secrecy::{Secret, ExposeSecret};
 
 
 #[derive(sqlx::Type, Serialize, Deserialize, Debug, Clone)]
@@ -49,19 +51,23 @@ impl User {
 }
 
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct RegisterUser {
-    first_name: String,
-    last_name: String,
-    email: String,
-    password: String,
-    password_verify: String,
+    #[validate(length(min = 1, max = 255))]
+    pub first_name: String,
+    #[validate(length(min = 1, max = 255))]
+    pub last_name: String,
+    #[validate(email)]
+    pub email: String,
+    //#[validate(length(min = 10, max = 255))]
+    pub password: Secret<String>,
+    //#[validate(length(min = 10, max = 255))]
+    pub password_verify: Secret<String>,
     //picture: String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct LoginUser {
-    email: String,
-    password: String
+    pub email: String,
+    pub password: String
 }
-
