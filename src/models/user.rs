@@ -62,12 +62,12 @@ pub struct RegisterUser {
     //#[validate(length(min = 10, max = 255))]
     pub password: Secret<String>,
     //#[validate(length(min = 10, max = 255))]
-    pub password_verify: Secret<String>,
+    pub re_password: Secret<String>,
     //picture: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct LoginUser {
     pub email: String,
-    pub password: String
+    pub password: Secret<String>,
 }

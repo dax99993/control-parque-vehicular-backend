@@ -1,6 +1,7 @@
 
 use std::net::TcpListener;
 
+use crate::authentication::jwt::HmacKey;
 use crate::configuration::{Settings, DatabaseSettings};
 use actix_web::{web, App, HttpServer};
 use actix_web::dev::Server;
@@ -46,7 +47,7 @@ impl Application {
                          connection_pool,
                          //email_client,
                          //configuration.application.base_url,
-                         configuration.application.jwt_secret,
+                         configuration.application.hmca_secret,
                          //configuration.redis_uri,
                     ).await?;
         Ok( Self { port, server } )
@@ -67,12 +68,13 @@ async fn run(
     db_pool: PgPool,
     //email_client: ,
     //base_url: String,
-    jwt_secret: Secret<String>,
+    hmca_secret: HmacKey,
     //redis_uri: Secret<String>,
 ) -> Result<Server, anyhow::Error> {
     // Wrap data into smart pointer actix_web
     let db_pool = web::Data::new(db_pool);
-    let _secret_key = jwt_secret.expose_secret();
+    let hmca_secret = web::Data::new(hmca_secret);
+    //let _secret_key = jwt_secret.expose_secret();
 
     // Create the server
     let server = HttpServer::new(move || {
@@ -91,10 +93,11 @@ async fn run(
                     */
                     .route("/auth/register", web::post().to(register_user))
                     .route("/auth/login", web::post().to(login_user))
-                    .route("/auth/logout", web::post().to(logout_user))
+                    .route("/auth/logout", web::get().to(logout_user))
             )
             // Add all request extra data
             .app_data(db_pool.clone())
+            .app_data(hmca_secret.clone())
             //.app_data(email_client.clone())
     })
     .listen(listener)?

@@ -1,3 +1,4 @@
+use crate::authentication::jwt::HmacKey;
 use crate::email_client::EmailClient;
 use secrecy::{Secret, ExposeSecret};
 use serde_aux::prelude::deserialize_number_from_string;
@@ -20,7 +21,7 @@ pub struct ApplicationSettings {
     pub port: u16,
     pub host: String,
     pub base_url: String,
-    pub jwt_secret: Secret<String>,
+    pub hmca_secret: HmacKey,
 }
 
 #[derive(serde::Deserialize, Clone)]

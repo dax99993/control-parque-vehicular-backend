@@ -1,13 +1,42 @@
 use crate::models::user::RegisterUser;
-//use crate::authentication::password::compute_password_hash;
-//use crate::telemetry::spawn_blocking_with_tracing;
+use crate::authentication::password::compute_password_hash;
+use crate::telemetry::spawn_blocking_with_tracing;
+use crate::error::error_chain_fmt;
 use actix_web::{HttpResponse, web};
+use anyhow::Context;
 use sqlx::PgPool;
 use secrecy::{Secret, ExposeSecret};
-use validator::{Validate, ValidationError};
+use uuid::Uuid;
+use validator::Validate;
+
+struct NewUser {
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub password_hash: Secret<String>,
+}
 
 
-#[tracing::instrument(name = "Register user", skip(body, pool))]
+#[derive(thiserror::Error)]
+pub enum RegisterError {
+    #[error("{0}")]
+    ValidationError(String),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
+}
+
+impl std::fmt::Debug for RegisterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
+
+
+
+#[tracing::instrument(
+    name = "Register user",
+    skip(body, pool)
+)]
 pub async fn register_user(
     pool: web::Data<PgPool>,
     body: web::Json<RegisterUser>,
@@ -23,7 +52,7 @@ pub async fn register_user(
 
     /* check passwords match */
     if register_user.password.expose_secret() !=
-       register_user.password_verify.expose_secret() {
+       register_user.re_password.expose_secret() {
         return Ok(HttpResponse::BadRequest().json(
                 serde_json::json!({"status": "fail", "message": "Password don't match"})
                 ));
@@ -37,11 +66,13 @@ pub async fn register_user(
     }
     
     /* verify if user with given email exists, in case it does conflict */
-    match exists_user_with_email(&pool, &register_user.email).await {
+    match exists_user_with_email(&pool, &register_user.email)
+        .await
+        .context("Failed to query existing user.") {
         Ok(exists) => {
             if exists {
                 return Ok(HttpResponse::Conflict().json(
-                        serde_json::json!({"status": "fail", "message": "User already exists"})
+                        serde_json::json!({"status": "fail", "message": "Account with given email already exists"})
                         ));
             }
         }
@@ -52,18 +83,32 @@ pub async fn register_user(
             }
         }
 
-    //TODO
-    //generate password hash
     //register in database
+    let user_id = match insert_user(register_user, &pool).await {
+        Ok(uuid) => uuid.unwrap(),
+        Err(_) => {
+            return Ok(HttpResponse::InternalServerError().json(
+                        serde_json::json!({"status": "fail", "message": "Server error"})
+                        ));
+        }
+    };
+    tracing::Span::current()
+        .record("user_id", &tracing::field::display(&user_id));
+
+    //TODO
     //generate registration token
     //send email to verify user
 
-    Ok(HttpResponse::Ok().json(
+    Ok(HttpResponse::Created().json(
             serde_json::json!({"status": "sucess", "message": "User created"})
     ))
 }
 
 
+#[tracing::instrument(
+    name = "Querying user existence",
+    skip(email, pool)
+)]
 async fn exists_user_with_email(pool: &PgPool, email: &str) -> Result<bool, sqlx::Error> {
     let row = sqlx::query!(
         r#"
@@ -75,10 +120,49 @@ async fn exists_user_with_email(pool: &PgPool, email: &str) -> Result<bool, sqlx
         email
         )
         .fetch_one(pool)
-        .await
-        .expect("Failed to execute query");
+        .await?;
 
     let user_exists = row.exists.unwrap();
 
     Ok(user_exists)
+}
+
+#[tracing::instrument(name = "insert new user", skip(user, pool))]
+async fn insert_user(
+    user: RegisterUser,
+    pool: &PgPool,
+) -> Result<Option<uuid::Uuid>, anyhow::Error> {
+    let password_hash = spawn_blocking_with_tracing(
+        move || compute_password_hash(user.password)
+        )
+        .await?
+        .context("Failed to hash password")?;
+
+    let user = NewUser { 
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        password_hash
+    };
+
+    let uuid = Uuid::new_v4();
+    let row: Option<_> = sqlx::query!(
+        r#"
+        INSERT INTO users
+        (user_id, first_name, last_name, email, password_hash)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING user_id
+        "#,
+        uuid,
+        user.first_name,
+        user.last_name,
+        user.email,
+        user.password_hash.expose_secret(),
+    )
+    .fetch_optional(pool)
+    .await
+    .context("Failed to performed a query to retrieve stored new user")?
+    .map(|row| row.user_id);
+    
+    Ok(row)
 }
