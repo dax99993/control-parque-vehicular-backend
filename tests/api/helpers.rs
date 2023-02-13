@@ -69,7 +69,7 @@ impl TestApp {
     {
         self.api_client
             .post(&format!("{}/api/users/password", &self.address))
-            .form(body)
+            .json(body)
             .send()
             .await
             .expect("failed to execute request")
@@ -339,12 +339,12 @@ impl TestUser {
             .expect("Failed to create test users.");
     }
 
-    pub async fn login(&self, app: &TestApp) {
+    pub async fn login(&self, app: &TestApp) -> reqwest::Response {
         app.post_login(&serde_json::json!({
             "email": &self.email,
             "password": &self.password
         }))
-        .await;
+        .await
     }
 }
 

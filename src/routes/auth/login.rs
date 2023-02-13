@@ -1,5 +1,6 @@
 use actix_web::error::InternalError;
 use actix_web::{HttpResponse, web};
+use secrecy::ExposeSecret;
 use sqlx::PgPool;
 
 use crate::authentication::jwt::{create_jwt, HmacKey};
@@ -18,7 +19,7 @@ pub async fn login_user(
     body: web::Json<LoginUser>,
     key:  web::Data<HmacKey>,
     //_session: JwtMiddleware,
-) -> Result<HttpResponse, InternalError<LoginError>> {
+) -> Result<HttpResponse, actix_web::Error> {
     let credentials = Credentials {
         email: body.0.email,
         password: body.0.password,
@@ -30,13 +31,19 @@ pub async fn login_user(
             tracing::Span::current()
                 .record("user_id", &tracing::field::display(&user_id));
             // Generate jwt
-            let token: String = create_jwt(&user_id, &key)
-                .or_else(|e| {
-                    tracing::error!("Couldn't create JWT");
+            let token: String = match create_jwt(&user_id, &key) {
+                Ok(token) => token,
+                Err(e) => {
+                   tracing::error!("Couldn't create JWT {}", e);
+                   /*
                    let e = LoginError::UnexpectedError(e.into());
                    return Err(login_error(e));
-                })
-            .unwrap();
+                   */
+                   return Ok(HttpResponse::InternalServerError().json(
+                           serde_json::json!({ "status": "failed", "message": "Couldnt create jwt" }))
+                   );
+                }
+            };
 
             Ok(HttpResponse::Ok().json(
                     serde_json::json!({"status": "sucess", "token": token}))
@@ -44,19 +51,19 @@ pub async fn login_user(
 
         },
         Err(e) => {
-            let e = match e {
+            let json = match e {
+                /*
                 AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
+                */
+                AuthError::InvalidCredentials(_) => serde_json::json!({ "status": "failed", "message": "Invalid credentials" }),
+                AuthError::UnexpectedError(_) => serde_json::json!({ "status": "failed", "message": "Server Error" }),
             };
-            Err(login_error(e))
+            return Ok(HttpResponse::InternalServerError().json(json));
         }
     }
 }
 
-fn login_error(e: LoginError) -> InternalError<LoginError> {
-    let response = HttpResponse::InternalServerError().finish();
-    InternalError::from_response(e, response)
-}
 
 #[derive(thiserror::Error)]
 pub enum LoginError {

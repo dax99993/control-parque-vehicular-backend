@@ -85,7 +85,7 @@ pub async fn register_user(
 
     //register in database
     let user_id = match insert_user(register_user, &pool).await {
-        Ok(uuid) => uuid.unwrap(),
+        Ok(uuid) => uuid,
         Err(_) => {
             return Ok(HttpResponse::InternalServerError().json(
                         serde_json::json!({"status": "fail", "message": "Server error"})
@@ -131,22 +131,24 @@ async fn exists_user_with_email(pool: &PgPool, email: &str) -> Result<bool, sqlx
 async fn insert_user(
     user: RegisterUser,
     pool: &PgPool,
-) -> Result<Option<uuid::Uuid>, anyhow::Error> {
+) -> Result<uuid::Uuid, anyhow::Error> {
     let password_hash = spawn_blocking_with_tracing(
         move || compute_password_hash(user.password)
         )
         .await?
         .context("Failed to hash password")?;
 
+    /*
     let user = NewUser { 
         first_name: user.first_name,
         last_name: user.last_name,
         email: user.email,
         password_hash
     };
+    */
 
     let uuid = Uuid::new_v4();
-    let row: Option<_> = sqlx::query!(
+    let row = sqlx::query!(
         r#"
         INSERT INTO users
         (user_id, first_name, last_name, email, password_hash)
@@ -157,12 +159,12 @@ async fn insert_user(
         user.first_name,
         user.last_name,
         user.email,
-        user.password_hash.expose_secret(),
+        password_hash.expose_secret(),
     )
-    .fetch_optional(pool)
+    .fetch_one(pool)
     .await
-    .context("Failed to performed a query to retrieve stored new user")?
-    .map(|row| row.user_id);
+    .context("Failed to performed a query to retrieve stored new user")?;
+    //.map(|row| row.user_id);
     
-    Ok(row)
+    Ok(row.user_id)
 }

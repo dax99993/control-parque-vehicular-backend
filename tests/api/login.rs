@@ -5,30 +5,17 @@ use crate::helpers::spawn_app;
 async fn sucess_response_on_valid_credentials() {
     // Arrange
     let app = spawn_app().await;
-    
     // Act - Try to login
     let login_body = serde_json::json!({
         "email": app.test_user.email,
-        "password": app.test_user.email,
+        "password": app.test_user.password,
     });
     let response = app.post_login(&login_body).await;
 
     let text_response = response.text().await.unwrap();
+    //dbg!("{:?}", &text_response);
 
     assert!(text_response.contains("token"));
-
-    /*
-    #[derive(serde::Deserialize)]
-    struct JsonResponse {
-        pub status: String,
-        pub token: String,
-    }
-
-    let json_response = response.json::<JsonResponse>().await.unwrap();
-
-    // Asert
-    assert_eq!(json_response.status, "sucess".to_string());
-    */
 }
 
 
@@ -48,7 +35,7 @@ async fn error_response_on_invalid_credentials() {
     #[derive(serde::Deserialize)]
     struct JsonResponse {
         pub status: String,
-        pub token: String,
+        pub message: String,
     }
 
     let json_response = response.json::<JsonResponse>().await.unwrap();
