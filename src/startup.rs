@@ -3,13 +3,14 @@ use std::net::TcpListener;
 
 use crate::authentication::jwt::HmacKey;
 use crate::configuration::{Settings, DatabaseSettings};
+use crate::email_client::EmailClient;
 use actix_web::{web, App, HttpServer};
 use actix_web::dev::Server;
 use secrecy::{Secret, ExposeSecret};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
-use crate::routes::{health_check, register_user, login_user, logout_user};
+use crate::routes::{send_test_email, health_check, register_user, login_user, logout_user};
 use tracing_actix_web::TracingLogger;
 
 
@@ -30,7 +31,12 @@ impl Application {
         let connection_pool = get_connection_pool(&configuration.database);
 
         // email client
-        //
+        let email_client = EmailClient::new(configuration.email_client.smtp_address,
+                                            configuration.email_client.smtp_name,
+                                            configuration.email_client.smtp_username,
+                                            configuration.email_client.smtp_password,
+                                            configuration.email_client.smtp_port
+                                            );
 
         let address = format!(
             "{}:{}",
@@ -45,7 +51,7 @@ impl Application {
 
         let server = run(listener,
                          connection_pool,
-                         //email_client,
+                         email_client,
                          //configuration.application.base_url,
                          configuration.application.hmca_secret,
                          //configuration.redis_uri,
@@ -66,7 +72,7 @@ impl Application {
 async fn run(
     listener: TcpListener,
     db_pool: PgPool,
-    //email_client: ,
+    email_client: EmailClient,
     //base_url: String,
     hmca_secret: HmacKey,
     //redis_uri: Secret<String>,
@@ -74,6 +80,7 @@ async fn run(
     // Wrap data into smart pointer actix_web
     let db_pool = web::Data::new(db_pool);
     let hmca_secret = web::Data::new(hmca_secret);
+    let email_client = web::Data::new(email_client);
     //let _secret_key = jwt_secret.expose_secret();
 
     // Create the server
@@ -87,6 +94,7 @@ async fn run(
                     //.wrap()
                     // Add routes
                     .route("/health-check", web::get().to(health_check))
+                    .route("/email-check", web::get().to(send_test_email))
                     /*
                     .route("/login", web::get().to())
                     .route("/login", web::post().to())
@@ -98,6 +106,7 @@ async fn run(
             // Add all request extra data
             .app_data(db_pool.clone())
             .app_data(hmca_secret.clone())
+            .app_data(email_client.clone())
             //.app_data(email_client.clone())
     })
     .listen(listener)?

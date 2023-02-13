@@ -1,5 +1,4 @@
 use crate::authentication::jwt::HmacKey;
-use crate::email_client::EmailClient;
 use secrecy::{Secret, ExposeSecret};
 use serde_aux::prelude::deserialize_number_from_string;
 use sqlx::ConnectOptions;
@@ -27,10 +26,15 @@ pub struct ApplicationSettings {
 #[derive(serde::Deserialize, Clone)]
 pub struct EmailClientSettings {
     pub smtp_address: String,
-    pub username: String,
-    pub password: Secret<String>,
+    pub smtp_name: String,
+    pub smtp_username: String,
+    pub smtp_password: Secret<String>,
+    pub smtp_tls_port: u64,
+    pub smtp_ssl_port: u64,
+    pub smtp_port: u64,
 }
 
+/*
 impl EmailClientSettings {
     pub fn client(self) -> EmailClient {
         EmailClient::new(
@@ -40,6 +44,7 @@ impl EmailClientSettings {
         )
     }
 }
+*/
 
 
 

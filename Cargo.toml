@@ -19,7 +19,7 @@ argon2 = { version = "0.4.1", features = ["std"] }
 chrono = { version = "0.4.23", features = ["serde"] }
 config = "0.13.3"
 jsonwebtoken = "8.2.0"
-lettre = "0.10.2"
+lettre = { version = "0.10.2", features = ["serde", "tracing", "tokio1", "tokio1-native-tls"] }
 lettre_email = "0.9.4"
 #nonblock-logger = { version = "0.2.2", features = ["color", "dbg"] }
 rand = { version = "0.8.5", features = ["std_rng"] }

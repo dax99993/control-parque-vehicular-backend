@@ -3,3 +3,12 @@ application:
   base_url: "http://127.0.0.1"
 database:
   require_ssl: false
+email_client:
+  smtp_address: "localhost"
+  smtp_name: "Control-Parque-Vehicular"
+  # Erase this username and password before commit
+  smtp_username: "control.parque.vehicular.test@gmail.com"
+  smtp_password: "testpassword"
+  smtp_tls_port: 587
+  smtp_port: 1025
+  smtp_ssl_port: 465
