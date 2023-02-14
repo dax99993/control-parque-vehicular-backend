@@ -52,7 +52,7 @@ impl User {
 
 
 #[derive(Debug, Deserialize, Validate)]
-pub struct RegisterUser {
+pub struct SignupUser {
     #[validate(length(min = 1, max = 255))]
     pub first_name: String,
     #[validate(length(min = 1, max = 255))]

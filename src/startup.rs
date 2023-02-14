@@ -10,7 +10,7 @@ use secrecy::{Secret, ExposeSecret};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
-use crate::routes::{send_test_email, health_check, register_user, login_user, logout_user};
+use crate::routes::{send_test_email, health_check, confirm, signup_user, login_user, logout_user};
 use tracing_actix_web::TracingLogger;
 
 
@@ -100,7 +100,8 @@ async fn run(
                     .route("/login", web::get().to())
                     .route("/login", web::post().to())
                     */
-                    .route("/auth/register", web::post().to(register_user))
+                    .route("/auth/signup", web::post().to(signup_user))
+                    .route("/auth/signups/confirm", web::get().to(confirm))
                     .route("/auth/login", web::post().to(login_user))
                     .route("/auth/logout", web::get().to(logout_user))
             )

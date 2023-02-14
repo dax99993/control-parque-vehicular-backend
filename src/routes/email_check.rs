@@ -8,7 +8,8 @@ pub async fn send_test_email(email_client: web::Data<EmailClient>) -> HttpRespon
     match email_client.send_email(
         "dax99993@gmail.com",
         "Test Email",
-        "<p><i>This is an email in html format</i></p>"
+        "<p><i>This is an email in html format</i></p>",
+        "This is an email in plain_text format"
     )
     .await {
         Ok(_) => ok_response(),

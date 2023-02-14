@@ -3,8 +3,7 @@ use crate::error::error_chain_fmt;
 use secrecy::{Secret, ExposeSecret};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, AsyncSmtpTransport, Address, Tokio1Executor, AsyncTransport};
-use lettre::message::{Mailbox, header};
-use lettre::transport::smtp::Error;
+use lettre::message::{Mailbox, header, MultiPart, SinglePart};
 
 
 pub struct EmailClient {
@@ -53,6 +52,7 @@ impl EmailClient {
         recipient: &str,
         subject: &str,
         html_content: &str,
+        text_content: &str, 
     ) -> Result<(), anyhow::Error> {
     //) -> Result<(), <AsyncSmtpTransport::<Tokio1Executor> as AsyncTransport>::Error> {
 
@@ -62,10 +62,20 @@ impl EmailClient {
             .from(self.from.clone())
             .to(recipient.parse().unwrap())
             .subject(subject)
-            .header(header::ContentType::TEXT_HTML)
-            .body(format!("{}", html_content))
+            .multipart(
+            MultiPart::alternative() // This is composed of two parts.
+                .singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_PLAIN)
+                        .body(format!("{}", text_content)), // Every message should have a plain text fallback.
+                )
+                .singlepart(
+                    SinglePart::builder()
+                        .header(header::ContentType::TEXT_HTML)
+                        .body(format!("{}", html_content))
+                ),
+            )
             .map_err(|e| EmailClientError::InvalidEmailSettings(e.into()))?;
-            //.unwrap();
 
         // Send email
         match self.mailer.send(email).await {
