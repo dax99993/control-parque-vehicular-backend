@@ -1,6 +1,45 @@
-use actix_web::{HttpResponse, web};
+use crate::error::error_chain_fmt;
+use actix_web::{HttpResponse, web, ResponseError};
 use sqlx::PgPool;
 use uuid::Uuid;
+
+#[derive(thiserror::Error)]
+pub enum VerifyError {
+    #[error("{0}")]
+    InvalidTokenError(String),
+    #[error("{0}")]
+    AlreadyVerifiedUserError(String),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
+}
+
+impl std::fmt::Debug for VerifyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
+
+impl ResponseError for VerifyError {
+    fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
+        match self {
+            Self::AlreadyVerifiedUserError(_) => {
+                HttpResponse::Conflict().json(
+                        serde_json::json!({"status": "fail", "message": "Account was already verified"})
+                        )
+            },
+            Self::InvalidTokenError(_) => {
+                HttpResponse::BadRequest().json(
+                serde_json::json!({"status": "fail", "message": "Invalid token"})
+                )
+            },
+            Self::UnexpectedError(_) => {
+                HttpResponse::InternalServerError().json(
+                    serde_json::json!({"status": "fail", "message": "Server Error"})
+                    )
+            },
+        }
+    }
+}
 
 
 #[derive(serde::Deserialize)]
@@ -9,45 +48,36 @@ pub struct Parameters {
 }
 
 #[tracing::instrument(
-    name = "Confirm a unverified user",
+    name = "Confirm an unverified user",
     skip(parameters, pool)
 )]
 pub async fn confirm(
     parameters: web::Query<Parameters>,
     pool: web::Data<PgPool>,
-) -> HttpResponse {
-    // TODO return response when user was already confirm
-    let id = match get_user_id_from_token(&pool, &parameters.signup_token).await {
-        Ok(id) => id,
-        Err(_) => {
-            return HttpResponse::InternalServerError().json(
-                    serde_json::json!({"status": "fail", "message": "Server Error"})
-                    );
-        },
-    };
+) -> Result<HttpResponse, actix_web::Error> {
+    if let Some(user_id) = 
+        get_user_id_from_token(&pool, &parameters.signup_token).await
+            .map_err(|e| VerifyError::UnexpectedError(e.into()))?
+    {
+        // Dont confirm user if it was already confirmed
+        let verified = get_verified_field(&pool, user_id).await
+            .map_err(|e| VerifyError::UnexpectedError(e.into()))?;
+        if verified {
+            return Err(VerifyError::AlreadyVerifiedUserError("".into()))?;
+        }
 
-    match id {
-        None => {
-            return HttpResponse::Unauthorized().json(
-                    serde_json::json!({"status": "fail", "message": "Invalid token"})
-                    );
-        },
-        Some(user_id) => {
-            match confirm_user(&pool, user_id).await {
-                Ok(_) => {
-                    return HttpResponse::Ok().json(
-                        serde_json::json!({"status": "sucess", "message": "User verified"})
-                        );
-                },
-                Err(_) => {
-                    return HttpResponse::InternalServerError().json(
-                        serde_json::json!({"status": "fail", "message": "Server Error"})
-                        );
-                },
-            }
-        },
+        confirm_user(&pool, user_id).await
+            .map_err(|e| VerifyError::UnexpectedError(e.into()))?;
+
+            return Ok(HttpResponse::Ok().json(
+                serde_json::json!({"status": "sucess", "message": "User verified"})
+                ));
+            
+    } else {
+        return Err(VerifyError::InvalidTokenError("".into()))?;
     }
-    
+
+
 }
 
 
@@ -80,7 +110,7 @@ pub async fn confirm_user(
     pool: &PgPool,
     user_id: Uuid,
 ) -> Result<(), sqlx::Error> {
-    let result = sqlx::query!(
+    sqlx::query!(
         r#"UPDATE users SET verified = true WHERE user_id = $1"#,
         user_id 
     )
@@ -91,4 +121,27 @@ pub async fn confirm_user(
             e
         })?;
     Ok(())
+}
+
+#[tracing::instrument(
+    name = "Get user verified field",
+    skip(user_id, pool)
+)]
+pub async fn get_verified_field(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> Result<bool, sqlx::Error> {
+    let row = sqlx::query!(
+        r#"SELECT verified
+        FROM users
+        WHERE user_id = $1"#,
+        user_id 
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        e
+    })?;
+    Ok(row.verified)
 }

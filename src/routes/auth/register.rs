@@ -2,7 +2,7 @@ use crate::{models::user::SignupUser, email_client::EmailClient};
 use crate::authentication::password::compute_password_hash;
 use crate::telemetry::spawn_blocking_with_tracing;
 use crate::error::error_chain_fmt;
-use actix_web::{HttpResponse, web};
+use actix_web::{HttpResponse, web, ResponseError};
 use anyhow::Context;
 use rand::{thread_rng, Rng, distributions::Alphanumeric};
 use sqlx::{PgPool, Transaction, Postgres};
@@ -15,7 +15,11 @@ use validator::Validate;
 #[derive(thiserror::Error)]
 pub enum SignupError {
     #[error("{0}")]
-    ValidationError(String),
+    BodyValidationError(String),
+    #[error("{0}")]
+    UnmatchedPasswordError(String),
+    #[error("{0}")]
+    AlreadyExistsUserError(String),
     #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
@@ -23,6 +27,33 @@ pub enum SignupError {
 impl std::fmt::Debug for SignupError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         error_chain_fmt(self, f)
+    }
+}
+
+impl ResponseError for SignupError {
+    fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
+        match self {
+            SignupError::AlreadyExistsUserError(_) => {
+                HttpResponse::Conflict().json(
+                        serde_json::json!({"status": "fail", "message": "Account with given email already exists"})
+                        )
+            },
+            SignupError::BodyValidationError(_) => {
+                HttpResponse::BadRequest().json(
+                serde_json::json!({"status": "fail", "message": "Registration body invalid"})
+                )
+            },
+            SignupError::UnmatchedPasswordError(_) => {
+                HttpResponse::BadRequest().json(
+                serde_json::json!({"status": "fail", "message": "password and re_password don't match"})
+                )
+            },
+            SignupError::UnexpectedError(_) => {
+                HttpResponse::InternalServerError().json(
+                    serde_json::json!({"status": "fail", "message": "Server Error"})
+                    )
+            },
+        }
     }
 }
 
@@ -40,18 +71,12 @@ pub async fn signup_user(
 
     /* Validate body signup */
     let signup_user = body.into_inner();
-    if signup_user.validate().is_err() {
-        return Ok(HttpResponse::BadRequest().json(
-                serde_json::json!({"status": "fail", "message": "Registration body invalid"})
-                ));
-    }
+    signup_user.validate().map_err(|e| SignupError::BodyValidationError(e.to_string()))?;
 
     /* check passwords match */
     if signup_user.password.expose_secret() !=
        signup_user.re_password.expose_secret() {
-        return Ok(HttpResponse::BadRequest().json(
-                serde_json::json!({"status": "fail", "message": "Password don't match"})
-                ));
+        return Err(SignupError::UnmatchedPasswordError("".into()))?;
     }
 
     if signup_user.password.expose_secret().len() < 6 ||
@@ -61,77 +86,45 @@ pub async fn signup_user(
                 ));
     }
 
-    let mut transaction = match pool.begin().await {
-        Ok(t) => t,
-        Err(_) => {
-            return Ok(HttpResponse::InternalServerError().json(
-                    serde_json::json!({"status": "fail", "message": "Server Error"})
-                    ));
-        }
-    };
-    /* verify if user with given email exists, in case it does conflict */
-    match exists_user_with_email(&mut transaction, &signup_user.email)
+    let mut transaction = pool.begin()
         .await
-        .context("Failed to query existing user.") {
-        Ok(exists) => {
-            if exists {
-                return Ok(HttpResponse::Conflict().json(
-                        serde_json::json!({"status": "fail", "message": "Account with given email already exists"})
-                        ));
-            }
-        }
-        Err(_) => {
-                return Ok(HttpResponse::InternalServerError().json(
-                        serde_json::json!({"status": "fail", "message": "Server error"})
-                        ));
-            }
-        }
+        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
+    /* verify if user with given email exists, in case it does conflict */
+    let user_exists = exists_user_with_email(&mut transaction, &signup_user.email)
+        .await
+        .context("Failed to query existing user.")
+        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
 
-    //register in database
+    if user_exists {
+        return Err(SignupError::AlreadyExistsUserError("".into()))?;
+    }
+
+    // insert new user in database
     let user_email = signup_user.email.clone();
-    let user_id = match insert_user(&mut transaction, signup_user).await {
-        Ok(uuid) => uuid,
-        Err(_) => {
-            return Ok(HttpResponse::InternalServerError().json(
-                        serde_json::json!({"status": "fail", "message": "Server error"})
-                        ));
-        }
-    };
+    let user_id = insert_user(&mut transaction, signup_user)
+        .await
+        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
     tracing::Span::current()
         .record("user_id", &tracing::field::display(&user_id));
-
-    //TODO
-    //generate registration token
+    // generate signup token
     let signup_token = generate_signup_token();
-    match store_token(&mut transaction, user_id, &signup_token).await {
-        Ok(_) => {},
-        Err(_) => {
-            return Ok(HttpResponse::InternalServerError().json(
-                        serde_json::json!({"status": "fail", "message": "Server error"})
-                        ));
-        }
-    }
-    match transaction.commit().await {
-        Ok(_) => {},
-        Err(_) => {
-            return Ok(HttpResponse::InternalServerError().json(
-                        serde_json::json!({"status": "fail", "message": "Server error"})
-                        ));
-        }
-    }
+    store_token(&mut transaction, user_id, &signup_token)
+        .await
+        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
+    transaction.commit()
+        .await
+        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
     //send email to verify user
-    match send_confirmation_email(&email_client, &user_email, &signup_token).await {
-        Ok(_) => {},
-        Err(_) => {
-            return Ok(HttpResponse::InternalServerError().json(
-                        serde_json::json!({"status": "fail", "message": "Server error"})
-                        ));
-        }
-    }
+    send_confirmation_email(&email_client, &user_email, &signup_token)
+        .await
+        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
 
-    Ok(HttpResponse::Created().json(
+    // Maybe change Created to Accepted due to email not being sent
+    Ok(
+        HttpResponse::Created().json(
             serde_json::json!({"status": "sucess", "message": "User created"})
-    ))
+            )
+     )
 }
 
 
@@ -248,11 +241,11 @@ async fn send_confirmation_email (
 
     email_client.send_email(
         user_email,
-        "Welcome",
-        &format!("Welcome to out newsletter!<br />\
-                 Click <a href=\"{}\">here</a> to confirm your subscription.",
+        "Bienvenido",
+        &format!("Bienvenido a Control Parque Vehicular!<br />\
+                 Haz click <a href=\"{}\">aqui</a> para confirmar cuenta.",
                  confirmation_link),
-        &format!("Welcome to out newsletter!\nVisit {} to confirm your subscription.",
+        &format!("Bienvenido a Control Parque Vehicular!\nVisita {} para confirmar cuenta.",
                 confirmation_link),
     )
     .await
