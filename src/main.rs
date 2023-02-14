@@ -10,7 +10,7 @@ async fn main() -> anyhow::Result<()> {
     // Logger
     //std::env::set_var("RUST_LOG", "debug");
     //env_logger::init();
-    let subscriber = get_subscriber("contro-parque-vehicular".into(), "info".into(), std::io::stdout);
+    let subscriber = get_subscriber("control-parque-vehicular".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
     
     // Get Environmental variables

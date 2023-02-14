@@ -19,19 +19,17 @@ pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
-    pub base_url: String,
+    //pub base_url: String,
     pub hmca_secret: HmacKey,
 }
 
 #[derive(serde::Deserialize, Clone)]
 pub struct EmailClientSettings {
-    pub smtp_address: String,
+    pub smtp_host: String,
     pub smtp_name: String,
     pub smtp_username: String,
     pub smtp_password: Secret<String>,
-    pub smtp_tls_port: u64,
-    pub smtp_ssl_port: u64,
-    pub smtp_port: u64,
+    pub smtp_port: u16,
 }
 
 /*

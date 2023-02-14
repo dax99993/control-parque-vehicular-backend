@@ -1,8 +1,10 @@
 //use crate::domain::SubscriberEmail;
+use crate::error::error_chain_fmt;
 use secrecy::{Secret, ExposeSecret};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Message, AsyncSmtpTransport, Address, Tokio1Executor, AsyncTransport};
 use lettre::message::{Mailbox, header};
+use lettre::transport::smtp::Error;
 
 
 pub struct EmailClient {
@@ -12,34 +14,38 @@ pub struct EmailClient {
 
 
 impl EmailClient {
-    pub fn new(smtp_address: String,
+    pub fn new(smtp_host: String,
                smtp_name: String,
                smtp_username: String,
                smtp_password: Secret<String>,
-               smtp_port: u64,
-    ) -> Self {
-        let _credentials = Credentials::new(smtp_username.clone(), format!("{}", smtp_password.expose_secret()));
+               smtp_port: u16,
+    ) -> Result<Self, anyhow::Error> {
         
-        /*
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(smtp_address.as_ref())
-            .unwrap()
-            .credentials(credentials)
-            .build();
-        */
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(smtp_address)
-            .port(smtp_port as u16)
-            .build();
+        let credentials = Credentials::new(smtp_username.clone(), format!("{}", smtp_password.expose_secret()));
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(smtp_host.as_ref())
+            .map_err(|e| EmailClientError::InvalidSmtpSettings(e.into()))?
+            .port(smtp_port)
+            .credentials(credentials);
+        
+        let mailer = 
+        if smtp_host == "localhost" {
+            mailer.tls(lettre::transport::smtp::client::Tls::None)
+        } else {
+            mailer
+        };
 
-        let split = smtp_username.split("@").collect::<Vec<&str>>();
-        let (user, domain) = (split.get(0).unwrap(), split.get(1).unwrap());
+        let mailer = mailer.build();
+        
 
-        let address = Address::new(user, domain).unwrap();
+        //let split = smtp_username.split("@").collect::<Vec<&str>>();
+        //let (user, domain) = (split.get(0).unwrap(), split.get(1).unwrap());
+
+        //let address = Address::new(user, domain).unwrap();
+        let address = smtp_username.parse::<Address>()
+            .map_err(|e| EmailClientError::InvalidSmtpSettings(e.into()))?;
         let from = Mailbox::new(Some(smtp_name), address);
 
-        Self {
-            mailer,
-            from
-        }
+        Ok(Self{ mailer, from })
     }
 
     pub async fn send_email(
@@ -47,7 +53,8 @@ impl EmailClient {
         recipient: &str,
         subject: &str,
         html_content: &str,
-    ) -> Result<(), <AsyncSmtpTransport::<Tokio1Executor> as AsyncTransport>::Error> {
+    ) -> Result<(), anyhow::Error> {
+    //) -> Result<(), <AsyncSmtpTransport::<Tokio1Executor> as AsyncTransport>::Error> {
 
         // Create email
         let recipient = format!("<{}>", recipient);
@@ -57,13 +64,30 @@ impl EmailClient {
             .subject(subject)
             .header(header::ContentType::TEXT_HTML)
             .body(format!("{}", html_content))
-            .unwrap();
+            .map_err(|e| EmailClientError::InvalidEmailSettings(e.into()))?;
+            //.unwrap();
 
         // Send email
         match self.mailer.send(email).await {
             Ok(_) => Ok(()),
-            Err(e) => Err(e),
+            Err(e) => Err(EmailClientError::UnexpectedError(e.into()))?,
         }
+    }
+}
+
+#[derive(thiserror::Error)]
+pub enum EmailClientError {
+    #[error("Invalid send email settings")]
+    InvalidEmailSettings(#[source] anyhow::Error),
+    #[error("Invalid SMTP settings")]
+    InvalidSmtpSettings(#[source] anyhow::Error),
+    #[error("Something went wrong")]
+    UnexpectedError(#[from] anyhow::Error),
+}
+
+impl std::fmt::Debug for EmailClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
     }
 }
 

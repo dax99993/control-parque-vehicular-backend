@@ -14,7 +14,7 @@ fi
 docker run \
     -p "6379:6379" \
     -d \
-    --name "redis_$(date '+%s')" \
+    --name "redis_cpv_$(date '+%s')" \
     redis:latest
 
 >&2 echo "Redis is ready to go"

@@ -6,7 +6,7 @@ pub async fn send_test_email(email_client: web::Data<EmailClient>) -> HttpRespon
     let email_client = email_client.into_inner();
 
     match email_client.send_email(
-        "user@email.com",
+        "dax99993@gmail.com",
         "Test Email",
         "<p><i>This is an email in html format</i></p>"
     )

@@ -31,12 +31,13 @@ impl Application {
         let connection_pool = get_connection_pool(&configuration.database);
 
         // email client
-        let email_client = EmailClient::new(configuration.email_client.smtp_address,
-                                            configuration.email_client.smtp_name,
-                                            configuration.email_client.smtp_username,
-                                            configuration.email_client.smtp_password,
-                                            configuration.email_client.smtp_port
-                                            );
+        let email_client = EmailClient::new(
+            configuration.email_client.smtp_host,
+            configuration.email_client.smtp_name,
+            configuration.email_client.smtp_username,
+            configuration.email_client.smtp_password,
+            configuration.email_client.smtp_port
+            )?;
 
         let address = format!(
             "{}:{}",

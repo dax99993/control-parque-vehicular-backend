@@ -3,15 +3,10 @@ application:
 database:
   require_ssl: true
 email_client:
-  smtp_address: "smtp.gmail.com"
+  smtp_host: "smtp.gmail.com"
   smtp_name: "Control-Parque-Vehicular"
   # Erase this username and password before commit
   smtp_username: "control.parque.vehicular.test@gmail.com"
   smtp_password: "wgumlbemejtmjajd"
-  smtp_tls_port: 587
-  smtp_ssl_port: 465
+  #tls= 587, ssl = 465
   smtp_port: 465
-  # Value return by Postmark's API documentation
-  #base_url: "https://api.postmarkapp.com"
-  # Use the single sender email authorised on Postmark
-  #sender_email: "something@gmail.com"
