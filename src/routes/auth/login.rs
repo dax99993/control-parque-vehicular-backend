@@ -1,9 +1,8 @@
-use actix_web::error::InternalError;
 use actix_web::{HttpResponse, web};
-use secrecy::ExposeSecret;
+//use secrecy::ExposeSecret;
 use sqlx::PgPool;
 
-use crate::authentication::jwt::{create_jwt, HmacKey};
+use crate::authentication::jwt_session::{create_jwt, HmacKey};
 use crate::error::error_chain_fmt;
 use crate::models::user::LoginUser;
 use crate::authentication::{Credentials, validate_credentials, AuthError};

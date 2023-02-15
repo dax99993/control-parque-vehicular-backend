@@ -1,4 +1,4 @@
-use crate::authentication::jwt::HmacKey;
+use crate::authentication::jwt_session::HmacKey;
 use secrecy::{Secret, ExposeSecret};
 use serde_aux::prelude::deserialize_number_from_string;
 use sqlx::ConnectOptions;

@@ -1,11 +1,12 @@
 
 use std::net::TcpListener;
 
-use crate::authentication::jwt::HmacKey;
+use crate::authentication::{jwt_session::HmacKey, middleware::reject_anonymous_user};
 use crate::configuration::{Settings, DatabaseSettings};
 use crate::email_client::EmailClient;
 use actix_web::{web, App, HttpServer};
 use actix_web::dev::Server;
+use actix_web_lab::middleware::from_fn;
 //use secrecy::{Secret, ExposeSecret};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
@@ -99,14 +100,20 @@ async fn run(
                     // Add routes
                     .route("/health-check", web::get().to(health_check))
                     .route("/email-check", web::get().to(send_test_email))
-                    /*
-                    .route("/login", web::get().to())
-                    .route("/login", web::post().to())
-                    */
-                    .route("/auth/signup", web::post().to(signup_user))
-                    .route("/auth/signups/confirm", web::get().to(confirm))
-                    .route("/auth/login", web::post().to(login_user))
-                    .route("/auth/logout", web::get().to(logout_user))
+                    .service(
+                        web::scope("/auth")
+                            .route("/signup", web::post().to(signup_user))
+                            .route("/signups/confirm", web::get().to(confirm))
+                            .route("/login", web::post().to(login_user))
+                            .service(
+                                web::resource("/logout")
+                                    .wrap(from_fn(reject_anonymous_user))
+                                    .route(web::get().to(logout_user))
+                            )
+                    )
+                    .service(
+                        web::scope("/users/")
+                    )
             )
             // Add all request extra data
             .app_data(db_pool.clone())
