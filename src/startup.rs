@@ -6,7 +6,7 @@ use crate::configuration::{Settings, DatabaseSettings};
 use crate::email_client::EmailClient;
 use actix_web::{web, App, HttpServer};
 use actix_web::dev::Server;
-use secrecy::{Secret, ExposeSecret};
+//use secrecy::{Secret, ExposeSecret};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
@@ -20,6 +20,8 @@ pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
         .connect_lazy_with(configuration.with_db())
 }
 
+//#[derive(Debug)]
+pub struct ApplicationBaseUrl(pub String);
 
 pub struct Application {
     port: u16,
@@ -53,7 +55,7 @@ impl Application {
         let server = run(listener,
                          connection_pool,
                          email_client,
-                         //configuration.application.base_url,
+                         configuration.application.base_url,
                          configuration.application.hmca_secret,
                          //configuration.redis_uri,
                     ).await?;
@@ -74,7 +76,7 @@ async fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
-    //base_url: String,
+    base_url: String,
     hmca_secret: HmacKey,
     //redis_uri: Secret<String>,
 ) -> Result<Server, anyhow::Error> {
@@ -82,6 +84,7 @@ async fn run(
     let db_pool = web::Data::new(db_pool);
     let hmca_secret = web::Data::new(hmca_secret);
     let email_client = web::Data::new(email_client);
+    let base_url = web::Data::new(ApplicationBaseUrl(base_url));
     //let _secret_key = jwt_secret.expose_secret();
 
     // Create the server
@@ -109,6 +112,7 @@ async fn run(
             .app_data(db_pool.clone())
             .app_data(hmca_secret.clone())
             .app_data(email_client.clone())
+            .app_data(base_url.clone())
             //.app_data(email_client.clone())
     })
     .listen(listener)?

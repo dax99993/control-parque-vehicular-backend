@@ -2,6 +2,7 @@ use crate::{models::user::SignupUser, email_client::EmailClient};
 use crate::authentication::password::compute_password_hash;
 use crate::telemetry::spawn_blocking_with_tracing;
 use crate::error::error_chain_fmt;
+use crate::startup::ApplicationBaseUrl;
 use actix_web::{HttpResponse, web, ResponseError};
 use anyhow::Context;
 use rand::{thread_rng, Rng, distributions::Alphanumeric};
@@ -61,12 +62,13 @@ impl ResponseError for SignupError {
 
 #[tracing::instrument(
     name = "Signup user",
-    skip(body, pool, email_client)
+    skip(body, pool, email_client, base_url)
 )]
 pub async fn signup_user(
     pool: web::Data<PgPool>,
     body: web::Json<SignupUser>,
     email_client: web::Data<EmailClient>,
+    base_url: web::Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, actix_web::Error> {
 
     /* Validate body signup */
@@ -115,7 +117,7 @@ pub async fn signup_user(
         .await
         .map_err(|e| SignupError::UnexpectedError(e.into()))?;
     //send email to verify user
-    send_confirmation_email(&email_client, &user_email, &signup_token)
+    send_confirmation_email(&email_client, &base_url.0, &user_email, &signup_token)
         .await
         .map_err(|e| SignupError::UnexpectedError(e.into()))?;
 
@@ -230,12 +232,13 @@ async fn store_token (
 )]
 async fn send_confirmation_email (
     email_client: &EmailClient,
+    base_url: &str,
     user_email: &str,
     signup_token: &str,
 ) -> Result<(), anyhow::Error> {
     let confirmation_link = format!(
         "{}/api/auth/signups/confirm?signup_token={}",
-        "127.0.0.1",
+        base_url,
         signup_token,
         );
 
