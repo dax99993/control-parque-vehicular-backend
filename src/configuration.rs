@@ -9,8 +9,9 @@ use sqlx::postgres::{PgSslMode, PgConnectOptions};
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
-    pub email_client: EmailClientSettings// email client
+    pub email_client: EmailClientSettings,
     // shared cache redis
+    pub redis_client: RedisClientSettings,
 }
 
 
@@ -32,18 +33,19 @@ pub struct EmailClientSettings {
     pub smtp_port: u16,
 }
 
+
+#[derive(serde::Deserialize, Clone)]
+pub struct RedisClientSettings {
+    pub uri: String,
+}
+
 /*
-impl EmailClientSettings {
-    pub fn client(self) -> EmailClient {
-        EmailClient::new(
-            self.smtp_address,
-            self.username,
-            self.password,
-        )
+impl RedisClientSettings {
+    pub fn without_connection_manager(&self) -> RedisResult<Client> {
+        redis::Client::open(self.uri.clone())
     }
 }
 */
-
 
 
 #[derive(serde::Deserialize, Clone)]

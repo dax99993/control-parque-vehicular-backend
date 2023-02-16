@@ -17,7 +17,6 @@ pub async fn login_user(
     pool: web::Data<PgPool>,
     body: web::Json<LoginUser>,
     key:  web::Data<HmacKey>,
-    //_session: JwtMiddleware,
 ) -> Result<HttpResponse, actix_web::Error> {
     let credentials = Credentials {
         email: body.0.email,

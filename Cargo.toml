@@ -23,6 +23,7 @@ lettre = { version = "0.10.2", features = ["serde", "tracing", "tokio1", "tokio1
 lettre_email = "0.9.4"
 #nonblock-logger = { version = "0.2.2", features = ["color", "dbg"] }
 rand = { version = "0.8.5", features = ["std_rng"] }
+redis = { version = "0.22.3", features = ["tokio-comp", "tokio-native-tls-comp", "connection-manager"] }
 secrecy = { version = "0.8.0", features = ["serde"] }
 serde = { version = "1.0.152", features = ["derive"] }
 serde-aux = "4.1.2"

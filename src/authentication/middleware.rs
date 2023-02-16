@@ -16,9 +16,8 @@ pub async fn reject_anonymous_user(
         JwtSession::from_request(http_request, payload).await?
     };
 
-    let user_id = session.get_user_id();
     req.extensions_mut()
-        .insert::<uuid::Uuid>(user_id.to_owned());
+        .insert::<JwtSession>(session);
 
     next.call(req).await
 }

@@ -111,7 +111,10 @@ pub async fn confirm_user(
     user_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        r#"UPDATE users SET verified = true WHERE user_id = $1"#,
+        r#"UPDATE users
+        SET verified = true,
+            updated_at = now()
+        WHERE user_id = $1"#,
         user_id 
     )
         .execute(pool)

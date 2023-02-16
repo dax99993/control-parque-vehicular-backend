@@ -14,6 +14,7 @@ use sqlx::postgres::PgPoolOptions;
 use crate::routes::{send_test_email, health_check, confirm, signup_user, login_user, logout_user};
 use tracing_actix_web::TracingLogger;
 
+//use redis::{Client, RedisResult};
 
 pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
     PgPoolOptions::new()
@@ -21,8 +22,13 @@ pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
         .connect_lazy_with(configuration.with_db())
 }
 
+//pub fn get_redis_client(configuration: &RedisClientSettings) -> {}
+
+
 //#[derive(Debug)]
 pub struct ApplicationBaseUrl(pub String);
+
+pub struct RedisUri(pub String);
 
 pub struct Application {
     port: u16,
@@ -32,6 +38,10 @@ pub struct Application {
 impl Application {
     pub async fn build(configuration: Settings) -> Result<Self, anyhow::Error> {
         let connection_pool = get_connection_pool(&configuration.database);
+
+        // redis_client
+        //let redis_client = redis::Client::open(configuration.redis_client.uri.clone())?;
+        let redis_uri = RedisUri(configuration.redis_client.uri);
 
         // email client
         let email_client = EmailClient::new(
@@ -58,7 +68,7 @@ impl Application {
                          email_client,
                          configuration.application.base_url,
                          configuration.application.hmca_secret,
-                         //configuration.redis_uri,
+                         redis_uri,
                     ).await?;
         Ok( Self { port, server } )
     }
@@ -79,14 +89,16 @@ async fn run(
     email_client: EmailClient,
     base_url: String,
     hmca_secret: HmacKey,
-    //redis_uri: Secret<String>,
+    //redis_client: redis::Client,
+    redis_uri: RedisUri,
 ) -> Result<Server, anyhow::Error> {
     // Wrap data into smart pointer actix_web
     let db_pool = web::Data::new(db_pool);
     let hmca_secret = web::Data::new(hmca_secret);
     let email_client = web::Data::new(email_client);
     let base_url = web::Data::new(ApplicationBaseUrl(base_url));
-    //let _secret_key = jwt_secret.expose_secret();
+    let redis_uri = web::Data::new(redis_uri);
+
 
     // Create the server
     let server = HttpServer::new(move || {
@@ -112,7 +124,9 @@ async fn run(
                             )
                     )
                     .service(
-                        web::scope("/users/")
+                        web::scope("/users")
+                            .wrap(from_fn(reject_anonymous_user))
+                            .route("/me", web::get().to(health_check))
                     )
             )
             // Add all request extra data
@@ -120,7 +134,7 @@ async fn run(
             .app_data(hmca_secret.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
-            //.app_data(email_client.clone())
+            .app_data(redis_uri.clone())
     })
     .listen(listener)?
     .run();
