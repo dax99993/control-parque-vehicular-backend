@@ -9,3 +9,4 @@ pub use auth::register::signup_user;
 pub use auth::login::login_user;
 pub use auth::logout::logout_user;
 pub use auth::signup_confirm::confirm;
+pub use user::{user_get_me};

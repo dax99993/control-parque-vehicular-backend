@@ -1,73 +1,94 @@
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use super::user::{User, UserStatus, Department};
-use crate::state::AppState;
+use actix_web::HttpResponse;
+use anyhow::Context;
+use crate::models::user::User;
+
+use sqlx::PgPool;
+use uuid::Uuid;
 
 
-#[get("/")]
-async fn get_users(app_state: AppState) -> HttpResponse {
+async fn get_users(
+    pool: &PgPool
+) -> Result<Vec<User>, anyhow::Error> {
     match sqlx::query_as!(
         User, 
         r#"SELECT 
-        id,
+        user_id,
         first_name,
         last_name,
         email,
-        password,
+        password_hash,
         employee_number,
         active,
+        verified,
         picture,
         department,
-        status as "status: UserStatus",
+        role,
         created_at,
         updated_at
         FROM users"#
         )
-        .fetch_all(&app_state.pool)
+        .fetch_all(pool)
         .await
     {
-        Ok(users) => HttpResponse::Ok().json(users),
-        Err(_) => HttpResponse::InternalServerError().into(),
+        Ok(users) => Ok(users),
+        Err(e) => Err(e.into()),
     }
 }
 
-#[get("/{user_id}")]
-async fn get_user_by_id(path: web::Path<usize>, app_state: AppState) -> HttpResponse {
-    let user_id: usize = path.into_inner();
-
+pub async fn get_user_by_id(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> Result<Option<User>, anyhow::Error>
+{
     let user: Option<User> = sqlx::query_as!(
         User,
         r#"SELECT 
-        id,
+        user_id,
         first_name,
         last_name,
         email,
-        password,
+        password_hash,
         employee_number,
         active,
+        verified,
         picture,
         department,
-        status as "status: UserStatus",
+        role,
         created_at,
         updated_at
-        FROM users WHERE id = $1"#,
-        user_id as i64,
+        FROM users WHERE user_id = $1"#,
+        user_id,
     )
-    .fetch_optional(&app_state.pool)
+    .fetch_optional(pool)
     .await
-    .unwrap();
+    .context("Failed to get query")?;
 
-    match user {
-        Some(user) => HttpResponse::Ok().json(user),
-        None => HttpResponse::NotFound().json("No user found"),
-    }
+    Ok(user)
 }
 
-pub fn init(cfg: &mut web::ServiceConfig) {
-    /*
-    cfg.service(
-        web::scope("/users")
-        );
-    */
-    cfg.service(get_users);
-    cfg.service(get_user_by_id);
+async fn get_user_role(
+    pool: &PgPool,
+    user_id: Uuid,
+) -> Result<Option<String>, sqlx::Error> {
+    struct Role{ pub role: String }
+    let role = sqlx::query_as!(
+        Role,
+        r#"
+        SELECT 
+        role
+        FROM users
+        WHERE user_id = $1
+        "#,
+        user_id,
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    let role = 
+    match role {
+        Some(role) => Some(role.role),
+        None => None,
+    };
+
+    Ok(role)
 }

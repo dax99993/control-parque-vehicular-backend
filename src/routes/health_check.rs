@@ -1,5 +1,8 @@
-use actix_web::HttpResponse;
+use actix_web::{HttpResponse, Responder};
 
-pub async fn health_check() -> HttpResponse {
-    HttpResponse::Ok().finish()
+use crate::api_response::ApiResponse;
+
+pub async fn health_check() -> Result<impl Responder, actix_web::Error> {
+    Ok(ApiResponse::<()>::new().with_message("sucess"))
+    //HttpResponse::Ok().finish()
 }

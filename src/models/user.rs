@@ -1,20 +1,23 @@
 use chrono::NaiveDateTime;
 use serde::{Serialize, Deserialize};
+use uuid::Uuid;
 //use super::department::Department;
 use validator::{Validate, ValidationError};
 use secrecy::{Secret, ExposeSecret};
 
 
+/*
 #[derive(sqlx::Type, Serialize, Deserialize, Debug, Clone)]
 #[sqlx(type_name = "user_role", rename_all = "lowercase")]
 pub enum UserRole {
     Normal,
     Admin,
 }
+*/
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct User {
-    pub id: i32,
+    pub user_id: Uuid,
     pub first_name: String,
     pub last_name: String,
     pub email: String,
@@ -25,7 +28,8 @@ pub struct User {
     pub picture: String,
     //pub department: Department,
     pub department: Option<i32>,
-    pub role: UserRole,
+    //pub role: UserRole,
+    pub role: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -45,7 +49,19 @@ impl User {
     */
 
     pub fn to_admin(&mut self) {
-        self.role = UserRole::Admin;
+        self.role = "admin".to_string();
+    }
+
+    pub fn to_normal(&mut self) {
+        self.role = "normal".to_string();
+    }
+
+    pub fn is_admin(&self) -> bool {
+        self.role == "admin".to_string()
+    }
+
+    pub fn is_normal(&self) -> bool {
+        self.role == "normal".to_string()
     }
      
 }
@@ -70,4 +86,31 @@ pub struct SignupUser {
 pub struct LoginUser {
     pub email: String,
     pub password: Secret<String>,
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FilteredUser {
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub employee_number: Option<i16>,
+    //pub active: bool,
+    pub picture: String,
+    //pub department: Department,
+    pub department: Option<i32>,
+    //pub role: UserRole,
+}
+
+impl FilteredUser {
+    pub fn from(user: User) -> Self {
+        Self { 
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
+            employee_number: user.employee_number,
+            picture: user.picture,
+            department: user.department
+        }
+    }
 }

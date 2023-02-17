@@ -1,0 +1,399 @@
+{
+  "db": "PostgreSQL",
+  "2880480077b654e38b63f423ab40680697a500ffe1af1d1b39108910594b581b": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n        UPDATE users\n        SET password_hash = $1\n        WHERE user_id = $2\n        "
+  },
+  "38df46ff251795a5c08ac3ae2d4a71cdec087ba664f8e26deb5f7ad7bf5080c4": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT user_id FROM  signup_tokens WHERE signup_token = $1"
+  },
+  "4048ab4b03253a957946d0009fc6e360c18e3ecc6bd527c51b267e0c6b79edb3": {
+    "describe": {
+      "columns": [
+        {
+          "name": "first_name",
+          "ordinal": 0,
+          "type_info": "Text"
+        },
+        {
+          "name": "last_name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 2,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT first_name, last_name, email FROM users OFFSET 1"
+  },
+  "4d5cbda93ec0c09bd88666357f675d3b45e8e82e9386a1ee98f06733842eb826": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "first_name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "last_name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "password_hash",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "employee_number",
+          "ordinal": 5,
+          "type_info": "Int2"
+        },
+        {
+          "name": "active",
+          "ordinal": 6,
+          "type_info": "Bool"
+        },
+        {
+          "name": "verified",
+          "ordinal": 7,
+          "type_info": "Bool"
+        },
+        {
+          "name": "picture",
+          "ordinal": 8,
+          "type_info": "Text"
+        },
+        {
+          "name": "department",
+          "ordinal": 9,
+          "type_info": "Int4"
+        },
+        {
+          "name": "role",
+          "ordinal": 10,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 11,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "updated_at",
+          "ordinal": 12,
+          "type_info": "Timestamp"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT \n        user_id,\n        first_name,\n        last_name,\n        email,\n        password_hash,\n        employee_number,\n        active,\n        verified,\n        picture,\n        department,\n        role,\n        created_at,\n        updated_at\n        FROM users WHERE user_id = $1"
+  },
+  "513326ee90aba79ba5555270fc8e0ee2177b7b2781fbe19fe9a037b782326454": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Text",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "INSERT INTO users (user_id, first_name, last_name, email, password_hash)\n            VALUES ($1, $2, $3, $4, $5)"
+  },
+  "5292c8a8cc78280265a8720bec2fca935cba5e27783482b4408e4e0ac707ef0e": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "password_hash",
+          "ordinal": 1,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n        SELECT user_id, password_hash\n        FROM users\n        WHERE email = $1\n        "
+  },
+  "5812eed1e21b4b9967bebe14f2bb640cec1b16eb27d1003993bf767ce047ea30": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        },
+        {
+          "name": "first_name",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "last_name",
+          "ordinal": 2,
+          "type_info": "Text"
+        },
+        {
+          "name": "email",
+          "ordinal": 3,
+          "type_info": "Text"
+        },
+        {
+          "name": "password_hash",
+          "ordinal": 4,
+          "type_info": "Text"
+        },
+        {
+          "name": "employee_number",
+          "ordinal": 5,
+          "type_info": "Int2"
+        },
+        {
+          "name": "active",
+          "ordinal": 6,
+          "type_info": "Bool"
+        },
+        {
+          "name": "verified",
+          "ordinal": 7,
+          "type_info": "Bool"
+        },
+        {
+          "name": "picture",
+          "ordinal": 8,
+          "type_info": "Text"
+        },
+        {
+          "name": "department",
+          "ordinal": 9,
+          "type_info": "Int4"
+        },
+        {
+          "name": "role",
+          "ordinal": 10,
+          "type_info": "Text"
+        },
+        {
+          "name": "created_at",
+          "ordinal": 11,
+          "type_info": "Timestamp"
+        },
+        {
+          "name": "updated_at",
+          "ordinal": 12,
+          "type_info": "Timestamp"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false,
+        true,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT \n        user_id,\n        first_name,\n        last_name,\n        email,\n        password_hash,\n        employee_number,\n        active,\n        verified,\n        picture,\n        department,\n        role,\n        created_at,\n        updated_at\n        FROM users"
+  },
+  "68238e0abd00fea3c677262d3e322907cefb849607b0c4bd0c79bc772b652756": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "UPDATE users\n        SET verified = true,\n            updated_at = now()\n        WHERE user_id = $1"
+  },
+  "9df0e46e2d8227cd13f445b16ffc1be7fa8b02da260db55a65d60fc1b5762222": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_id",
+          "ordinal": 0,
+          "type_info": "Uuid"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid",
+          "Text",
+          "Text",
+          "Text",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO users\n        (user_id, first_name, last_name, email, password_hash)\n        VALUES ($1, $2, $3, $4, $5)\n        RETURNING user_id\n        "
+  },
+  "ad3cc139392756855fe47cdc76edd2ca1e09646df4ccce9426e911e34be5b5e7": {
+    "describe": {
+      "columns": [
+        {
+          "name": "role",
+          "ordinal": 0,
+          "type_info": "Text"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n        SELECT \n        role\n        FROM users\n        WHERE user_id = $1\n        "
+  },
+  "b0d3be5a3d9cb0b3496cf9a1bd12af8460d07639a82f34f0581962e347c9c49a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "verified",
+          "ordinal": 0,
+          "type_info": "Bool"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Uuid"
+        ]
+      }
+    },
+    "query": "SELECT verified\n        FROM users\n        WHERE user_id = $1"
+  },
+  "c54a12bc89478502dc5c9bcf0efe907046cfd6c1e143620447ef38b5aeea317e": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Text",
+          "Uuid"
+        ]
+      }
+    },
+    "query": "\n        INSERT INTO signup_tokens\n        (signup_token, user_id)\n        VALUES ($1, $2)\n        "
+  },
+  "d1e788de0e494a14a76588dd89f49bc734a7b9a8443d13e0b6fd1e32782cc4bb": {
+    "describe": {
+      "columns": [
+        {
+          "name": "exists",
+          "ordinal": 0,
+          "type_info": "Bool"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "\n        SELECT EXISTS(\n            SELECT user_id FROM users\n            WHERE email = $1\n        )\n        "
+  }
+}

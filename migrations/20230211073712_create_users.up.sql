@@ -1,5 +1,5 @@
 -- Add up migration script here
-CREATE TYPE user_role AS ENUM ('normal', 'admin');
+--CREATE TYPE user_role AS ENUM ('normal', 'admin');
 
 CREATE TABLE IF NOT EXISTS users 
 (
@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS users
     active BOOLEAN NOT NULL DEFAULT TRUE,
     verified BOOLEAN NOT NULL DEFAULT FALSE,
     department INTEGER NULL REFERENCES departments(id) ON DELETE SET NULL,
-    role user_role NOT NULL DEFAULT 'normal',
+    --role user_role NOT NULL DEFAULT 'normal',
+    role TEXT NOT NULL DEFAULT 'normal' CHECK( role IN ('normal', 'admin') ),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
