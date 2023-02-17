@@ -1,63 +1,16 @@
-use crate::{models::user::SignupUser, email_client::EmailClient};
+use crate::api_response::{e401, e500, ApiResponse, e409};
+use crate::models::user::SignupUser;
+use crate::email_client::EmailClient;
 use crate::authentication::password::compute_password_hash;
 use crate::telemetry::spawn_blocking_with_tracing;
-use crate::error::error_chain_fmt;
 use crate::startup::ApplicationBaseUrl;
-use actix_web::{HttpResponse, web, ResponseError};
+use actix_web::{HttpResponse, web};
 use anyhow::Context;
 use rand::{thread_rng, Rng, distributions::Alphanumeric};
 use sqlx::{PgPool, Transaction, Postgres};
 use secrecy::ExposeSecret;
 use uuid::Uuid;
 use validator::Validate;
-
-
-
-#[derive(thiserror::Error)]
-pub enum SignupError {
-    #[error("{0}")]
-    BodyValidationError(String),
-    #[error("{0}")]
-    UnmatchedPasswordError(String),
-    #[error("{0}")]
-    AlreadyExistsUserError(String),
-    #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error),
-}
-
-impl std::fmt::Debug for SignupError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        error_chain_fmt(self, f)
-    }
-}
-
-impl ResponseError for SignupError {
-    fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
-        match self {
-            SignupError::AlreadyExistsUserError(_) => {
-                HttpResponse::Conflict().json(
-                        serde_json::json!({"status": "fail", "message": "Account with given email already exists"})
-                        )
-            },
-            SignupError::BodyValidationError(_) => {
-                HttpResponse::BadRequest().json(
-                serde_json::json!({"status": "fail", "message": "Registration body invalid"})
-                )
-            },
-            SignupError::UnmatchedPasswordError(_) => {
-                HttpResponse::BadRequest().json(
-                serde_json::json!({"status": "fail", "message": "password and re_password don't match"})
-                )
-            },
-            SignupError::UnexpectedError(_) => {
-                HttpResponse::InternalServerError().json(
-                    serde_json::json!({"status": "fail", "message": "Server Error"})
-                    )
-            },
-        }
-    }
-}
-
 
 
 #[tracing::instrument(
@@ -73,59 +26,56 @@ pub async fn signup_user(
 
     /* Validate body signup */
     let signup_user = body.into_inner();
-    signup_user.validate().map_err(|e| SignupError::BodyValidationError(e.to_string()))?;
+    signup_user.validate().map_err(|_| e401().with_message("Invalid body"))?;
 
     /* check passwords match */
     if signup_user.password.expose_secret() !=
        signup_user.re_password.expose_secret() {
-        return Err(SignupError::UnmatchedPasswordError("".into()))?;
+        return Err(e401().with_message("Passwords dont match"))?;
     }
 
     if signup_user.password.expose_secret().len() < 6 ||
        signup_user.password.expose_secret().len() > 255 {
-        return Ok(HttpResponse::BadRequest().json(
-                serde_json::json!({"status": "fail", "message": "Password should be between 6 and 255 characters"})
-                ));
+        return Err(e401().with_message("Password should be between 6 and 255 characters"))?;
     }
 
     let mut transaction = pool.begin()
         .await
-        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
+        .map_err(|_| e500())?;
+
     /* verify if user with given email exists, in case it does conflict */
     let user_exists = exists_user_with_email(&mut transaction, &signup_user.email)
         .await
         .context("Failed to query existing user.")
-        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
+        .map_err(|_| e500())?;
 
     if user_exists {
-        return Err(SignupError::AlreadyExistsUserError("".into()))?;
+        return Err(e409().with_message("User already exits"))?
     }
 
     // insert new user in database
     let user_email = signup_user.email.clone();
     let user_id = insert_user(&mut transaction, signup_user)
         .await
-        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
+        .map_err(|_| e500())?;
     tracing::Span::current()
         .record("user_id", &tracing::field::display(&user_id));
     // generate signup token
     let signup_token = generate_signup_token();
     store_token(&mut transaction, user_id, &signup_token)
         .await
-        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
+        .map_err(|_| e500())?;
     transaction.commit()
         .await
-        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
+        .map_err(|_| e500())?;
     //send email to verify user
     send_confirmation_email(&email_client, &base_url.0, &user_email, &signup_token)
         .await
-        .map_err(|e| SignupError::UnexpectedError(e.into()))?;
+        .map_err(|_| e500())?;
 
     // Maybe change Created to Accepted due to email not being sent
     Ok(
-        HttpResponse::Created().json(
-            serde_json::json!({"status": "sucess", "message": "User created"})
-            )
+        ApiResponse::<()>::new().with_message("User created").to_resp()
      )
 }
 

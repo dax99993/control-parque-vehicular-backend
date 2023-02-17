@@ -6,35 +6,17 @@ use secrecy::{Secret, ExposeSecret};
 
 use actix_web::{HttpRequest, web, FromRequest};
 use actix_web::http;
-use actix_web::error::{ErrorUnauthorized, InternalError, ErrorInternalServerError};
 use actix_web::dev::Payload;
 use std::future::{ready, Ready};
 
-use crate::error::error_chain_fmt;
+use crate::api_response::{e401, e500};
 use crate::startup::RedisUri;
 
 use redis::Commands;
 
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct HmacKey(pub Secret<String>);
-
-
-#[derive(thiserror::Error)]
-enum JwtError {
-    #[error("{0}")]
-    TokenCreationError(String),
-    #[error(transparent)]
-    TokenReadingError(#[from] anyhow::Error),
-    #[error("")]
-    SessionBlacklistingError(#[source] anyhow::Error),
-}
-
-impl std::fmt::Debug for JwtError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        error_chain_fmt(self, f)
-    }
-}
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TokenClaims {
@@ -145,17 +127,23 @@ impl FromRequest for JwtSession {
     type Future = Ready<Result<Self, Self::Error>>;
 
     fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
-        let hmca_key = req.app_data::<web::Data<HmacKey>>()
-            .unwrap()
-            //.expect("No key available")
-            .get_ref();
+        let hmca_key = if let Some(key) = req.app_data::<web::Data<HmacKey>>() {
+            key.get_ref()
+        } else {
+            return ready(Err(e500().into()))
+        };
 
-        let redis_uri= req.app_data::<web::Data<RedisUri>>()
-            .unwrap()
-            .get_ref();
 
-        let redis_client = redis::Client::open(redis_uri.0.clone())
-            .unwrap();
+        let redis_uri= if let Some(uri) =  req.app_data::<web::Data<RedisUri>>() {
+            uri.get_ref()
+        } else {
+            return ready(Err(e500().into()))
+        };
+
+        let redis_client = match redis::Client::open(redis_uri.0.clone()) {
+            Ok(client) => client,
+            Err(_) =>  return ready(Err(e500().into())),
+        };
 
 
         let token = req
@@ -176,21 +164,13 @@ impl FromRequest for JwtSession {
             */
 
         if token.is_none() {
-            let json_error = serde_json::json!({
-                "status": "failed".to_string(),
-                "message": "You are not logged in, please provide token".to_string(),
-            });
-            return ready(Err(ErrorUnauthorized(json_error)));
+            return ready(Err(e401().with_message("Please provide a token").into()))
         }
         
         let claims = match TokenClaims::from_token(token.unwrap(), hmca_key) {
             Ok(c) => c,
             Err(_) => {
-                let json_error = serde_json::json!({
-                    "status": "failed".to_string(),
-                    "message": "Invalid token".to_string(),
-                });
-                return ready(Err(ErrorUnauthorized(json_error)));
+                return ready(Err(e401().with_message("Invalid token").into()))
             }
         };
 
@@ -202,20 +182,11 @@ impl FromRequest for JwtSession {
         match jwt_session.is_blacklisted() {
             Ok(exists) => {
                 if exists {
-                    let json_error = serde_json::json!({
-                        "status": "failed".to_string(),
-                        "message": "Token no longer valid".to_string(),
-                    });
-                    return ready(Err(ErrorUnauthorized(json_error)));
-                    
+                    return ready(Err(e401().with_message("Blacklisted token").into()))
                 }
             },
             Err(_) => {
-                let json_error = serde_json::json!({
-                    "status": "failed".to_string(),
-                    "message": "Server Error".to_string(),
-                });
-                return ready(Err(ErrorInternalServerError(json_error)));
+                return ready(Err(e500().into()))
             },
         }
 

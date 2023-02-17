@@ -1,8 +1,8 @@
-use actix_web::{HttpResponse, web, Responder};
+use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
 
 use crate::authentication::jwt_session::JwtSession;
-use crate::api_response::{ApiResponse, ApiError};
+use crate::api_response::{ApiResponse, e500};
 use crate::models::user::{User, FilteredUser};
 
 use super::user::get_user_by_id;
@@ -11,22 +11,10 @@ use super::user::get_user_by_id;
 pub async fn user_get_me(
     jwt_session: JwtSession,
     pool: web::Data<PgPool>,
-) -> Result<impl Responder, actix_web::Error> {
+) -> Result<HttpResponse, actix_web::Error> {
     
-    /*
-    if let Ok(Some(user)) = get_user_by_id(&pool, jwt_session.user_id).await
-        .map_err(|e| Err(ApiError::new()
-            .with_status("fail")
-            .with_message("Server Error")
-            )
-        )? {
-    */
     let user = get_user_by_id(&pool, jwt_session.user_id).await
-        .map_err(|_| ApiError::new()
-            .with_status_code(500)
-            .with_status("fail")
-            .with_message("Server Error")
-            )?;
+        .map_err(|_| e500())?;
     match user {
         Some(user) => {
             if user.is_admin() {
@@ -45,10 +33,7 @@ pub async fn user_get_me(
             }
         },
         None => {
-            return Err(ApiError::new()
-                       .with_status("fail")
-                       .with_message("Server Error")
-                      )?;
+            return Err(e500())?;
         }
     }
 }

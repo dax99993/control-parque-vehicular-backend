@@ -1,4 +1,3 @@
-use actix_web::HttpResponse;
 use anyhow::Context;
 use crate::models::user::User;
 
