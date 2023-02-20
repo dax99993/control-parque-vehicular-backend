@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 
-async fn get_users(
+pub async fn get_users(
     pool: &PgPool
 ) -> Result<Vec<User>, anyhow::Error> {
     match sqlx::query_as!(

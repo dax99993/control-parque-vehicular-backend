@@ -108,3 +108,15 @@ pub fn e409() -> ApiError {
             .with_status_code(409)
             .with_status("fail")
 }
+
+pub fn e403() -> ApiError {
+    ApiError::new()
+            .with_status_code(403)
+            .with_status("fail")
+}
+
+pub fn e404() -> ApiError {
+    ApiError::new()
+            .with_status_code(404)
+            .with_status("fail")
+}

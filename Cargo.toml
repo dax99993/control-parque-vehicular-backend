@@ -13,6 +13,7 @@ name = "control-parque-vehicular"
 
 [dependencies]
 actix-cors = "0.6.4"
+actix-files = { version = "0.6.2", features = ["tokio-uring"] }
 actix-web = "4.2.1"
 actix-web-lab = "0.18.9"
 anyhow = "1.0.69"

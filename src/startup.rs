@@ -12,10 +12,13 @@ use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
 use crate::routes::{send_test_email, health_check, confirm, signup_user, login_user, logout_user};
-use crate::routes::{user_get_me};
+use crate::routes::{user_get_me, user_get_all};
+use crate::routes::get_image;
 use tracing_actix_web::TracingLogger;
 
+
 //use redis::{Client, RedisResult};
+
 
 pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
     PgPoolOptions::new()
@@ -125,8 +128,14 @@ async fn run(
                             )
                     )
                     .service(
+                        web::scope("/images")
+                            .route("", web::get().to(get_image))
+                        //Files::new("/images", "./uploads/").show_files_listing()
+                    )
+                    .service(
                         web::scope("/users")
                             .wrap(from_fn(reject_anonymous_user))
+                            .route("", web::get().to(user_get_all))
                             .route("/me", web::get().to(user_get_me))
                     )
             )

@@ -55,6 +55,7 @@ dependencies = [
  "mime_guess",
  "percent-encoding",
  "pin-project-lite",
+ "tokio-uring",
 ]
 
 [[package]]
@@ -610,6 +611,7 @@ name = "control-parque-vehicular"
 version = "0.1.0"
 dependencies = [
  "actix-cors",
+ "actix-files",
  "actix-web",
  "actix-web-lab",
  "anyhow",
@@ -1456,6 +1458,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "io-uring"
+version = "0.5.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "41c85eff7f7c8d3ab8c7ec87313c0c194bbaf4371bb7d40f80293ba01bce8264"
+dependencies = [
+ "bitflags",
+ "libc",
 ]
 
 [[package]]
@@ -2487,6 +2499,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoped-tls"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
+
+[[package]]
 name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3014,6 +3032,21 @@ checksum = "d660770404473ccd7bc9f8b28494a811bc18542b915c0855c51e8f419d5223ce"
 dependencies = [
  "futures-core",
  "pin-project-lite",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-uring"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3ad494f39874984d990ade7f6319dafbcd3301ff0b1841f8a55a1ebb3e742c8"
+dependencies = [
+ "bytes",
+ "io-uring",
+ "libc",
+ "scoped-tls",
+ "slab",
+ "socket2",
  "tokio",
 ]
 
