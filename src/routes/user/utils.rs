@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Context;
 use crate::models::user::User;
 
@@ -91,3 +93,17 @@ async fn get_user_role(
 
     Ok(role)
 }
+
+pub fn user_file_picture_namer(filename: String) -> PathBuf {
+    let uuid = Uuid::new_v4();
+    let filename = format!("{}-{}", uuid, filename);
+    let file_path = std::env::current_dir()
+        .expect("Failed to determine current directory")
+        .join("uploads")
+        .join("users")
+        .join(filename);
+
+    file_path
+}
+
+

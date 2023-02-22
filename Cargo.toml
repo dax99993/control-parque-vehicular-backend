@@ -14,12 +14,14 @@ name = "control-parque-vehicular"
 [dependencies]
 actix-cors = "0.6.4"
 actix-files = { version = "0.6.2", features = ["tokio-uring"] }
+actix-multipart = "0.5.0"
 actix-web = "4.2.1"
 actix-web-lab = "0.18.9"
 anyhow = "1.0.69"
 argon2 = { version = "0.4.1", features = ["std"] }
 chrono = { version = "0.4.23", features = ["serde"] }
 config = "0.13.3"
+futures = "0.3.26"
 jsonwebtoken = "8.2.0"
 lettre = { version = "0.10.2", features = ["serde", "tracing", "tokio1", "tokio1-native-tls"] }
 lettre_email = "0.9.4"

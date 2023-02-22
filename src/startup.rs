@@ -11,9 +11,18 @@ use actix_web_lab::middleware::from_fn;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
-use crate::routes::{send_test_email, health_check, confirm, signup_user, login_user, logout_user};
-use crate::routes::{user_get_me, user_get_all};
+use crate::routes::{send_test_email, health_check};
+// Auth routes
+use crate::routes::{confirm, signup_user, login_user, logout_user};
+// User routes
+use crate::routes::{user_get_me, user_get_all, user_patch};
+// Static image routes
 use crate::routes::get_image;
+// Department routes
+use crate::routes::{departments_get,
+department_get_with_id, department_post_with_name, department_delete_with_id, department_patch};
+
+
 use tracing_actix_web::TracingLogger;
 
 
@@ -133,10 +142,20 @@ async fn run(
                         //Files::new("/images", "./uploads/").show_files_listing()
                     )
                     .service(
+                        web::scope("/departments")
+                            .wrap(from_fn(reject_anonymous_user))
+                            .route("", web::get().to(departments_get))
+                            .route("/{id}", web::get().to(department_get_with_id))
+                            .route("/{name}", web::post().to(department_post_with_name))
+                            .route("/{id}", web::delete().to(department_delete_with_id))
+                            .route("/{id}", web::patch().to(department_patch))
+                    )
+                    .service(
                         web::scope("/users")
                             .wrap(from_fn(reject_anonymous_user))
                             .route("", web::get().to(user_get_all))
                             .route("/me", web::get().to(user_get_me))
+                            .route("/multipart", web::patch().to(user_patch))
                     )
             )
             // Add all request extra data
