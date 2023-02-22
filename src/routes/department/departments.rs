@@ -82,7 +82,6 @@ async fn delete_department_with_name_sqlx(
     pool: &PgPool,
     id: i32,
 ) -> Result<(), anyhow::Error> {
-    //let row = sqlx::query!(
     let query = sqlx::query!(
         r#"
         DELETE FROM departments

@@ -14,13 +14,17 @@ use sqlx::postgres::PgPoolOptions;
 use crate::routes::{send_test_email, health_check};
 // Auth routes
 use crate::routes::{confirm, signup_user, login_user, logout_user};
-// User routes
-use crate::routes::{user_get_me, user_get_all, user_patch};
+// User me routes
+use crate::routes::user_get_me;
+// Users routes
+use crate::routes::{users_get_all, users_get_user_by_id, users_delete_user_by_id, user_patch};
 // Static image routes
 use crate::routes::get_image;
 // Department routes
 use crate::routes::{departments_get,
 department_get_with_id, department_post_with_name, department_delete_with_id, department_patch};
+// Vehicule routes
+use crate::routes::{get_all_vehicules, get_vehicule, post_new_vehicule, delete_vehicule};
 
 
 use tracing_actix_web::TracingLogger;
@@ -151,11 +155,29 @@ async fn run(
                             .route("/{id}", web::patch().to(department_patch))
                     )
                     .service(
+                        web::scope("/vehicules")
+                            .wrap(from_fn(reject_anonymous_user))
+                            // Admin and normal routes
+                            .route("", web::get().to(get_all_vehicules))
+                            // Admin routes
+                            .route("/{uuid}", web::get().to(get_vehicule))
+                            .route("", web::post().to(post_new_vehicule))
+                            .route("/{uuid}", web::delete().to(delete_vehicule))
+                            //.route("/multipart", web::patch().to(user_patch))
+
+                    )
+                    .service(
                         web::scope("/users")
                             .wrap(from_fn(reject_anonymous_user))
-                            .route("", web::get().to(user_get_all))
+                            // Me routes
                             .route("/me", web::get().to(user_get_me))
+                            //.route("/me", web::patch().to(user_patch_me))
+                            // Admin routes
+                            .route("", web::get().to(users_get_all))
+                            .route("/{uuid}", web::get().to(users_get_user_by_id))
+                            .route("/{uuid}", web::delete().to(users_delete_user_by_id))
                             .route("/multipart", web::patch().to(user_patch))
+
                     )
             )
             // Add all request extra data

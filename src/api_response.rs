@@ -97,15 +97,15 @@ pub fn e500() -> ApiError {
             .with_message("Server Error")
 }
 
-pub fn e401() -> ApiError {
+pub fn e400() -> ApiError {
     ApiError::new()
-            .with_status_code(401)
+            .with_status_code(400)
             .with_status("fail")
 }
 
-pub fn e409() -> ApiError {
+pub fn e401() -> ApiError {
     ApiError::new()
-            .with_status_code(409)
+            .with_status_code(401)
             .with_status("fail")
 }
 
@@ -120,3 +120,10 @@ pub fn e404() -> ApiError {
             .with_status_code(404)
             .with_status("fail")
 }
+
+pub fn e409() -> ApiError {
+    ApiError::new()
+            .with_status_code(409)
+            .with_status("fail")
+}
+

@@ -7,6 +7,10 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 
+#[tracing::instrument(
+    name = "Query all users",
+    skip_all
+)]
 pub async fn get_users(
     pool: &PgPool
 ) -> Result<Vec<User>, anyhow::Error> {
@@ -36,9 +40,13 @@ pub async fn get_users(
     }
 }
 
+#[tracing::instrument(
+    name = "Query user",
+    skip(pool)
+)]
 pub async fn get_user_by_id(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: &Uuid,
 ) -> Result<Option<User>, anyhow::Error>
 {
     let user: Option<User> = sqlx::query_as!(
@@ -67,9 +75,13 @@ pub async fn get_user_by_id(
     Ok(user)
 }
 
-async fn get_user_role(
+#[tracing::instrument(
+    name = "Query user role",
+    skip(pool)
+)]
+pub async fn get_user_role(
     pool: &PgPool,
-    user_id: Uuid,
+    user_id: &Uuid,
 ) -> Result<Option<String>, sqlx::Error> {
     struct Role{ pub role: String }
     let role = sqlx::query_as!(
@@ -85,6 +97,7 @@ async fn get_user_role(
     .fetch_optional(pool)
     .await?;
 
+
     let role = 
     match role {
         Some(role) => Some(role.role),
@@ -92,6 +105,33 @@ async fn get_user_role(
     };
 
     Ok(role)
+}
+
+
+#[tracing::instrument(
+    name = "Delete user query",
+    skip(pool)
+)]
+pub async fn delete_user_by_id(
+    pool: &PgPool,
+    user_id: &Uuid,
+) -> Result<(), anyhow::Error> {
+    let query = sqlx::query!(
+        r#"
+        DELETE FROM users
+        WHERE user_id = $1
+        "#,
+        user_id)
+        .execute(pool)
+        .await
+        .context("Failed to get query")?;
+
+    
+    if query.rows_affected() == 0 {
+        return Err(anyhow::anyhow!("Non existing user"));
+    }
+
+    Ok(())
 }
 
 pub fn user_file_picture_namer(filename: String) -> PathBuf {

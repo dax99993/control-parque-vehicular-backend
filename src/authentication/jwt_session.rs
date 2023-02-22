@@ -15,6 +15,7 @@ use crate::startup::RedisUri;
 use redis::Commands;
 
 
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct HmacKey(pub Secret<String>);
 
@@ -56,7 +57,6 @@ impl TokenClaims {
     pub fn get_user_id(&self) -> Result<Uuid, uuid::Error> {
         Uuid::parse_str(self.sub.as_str()) 
     }
-    
 }
 
 #[tracing::instrument(name = "Create JWT", skip(key))]

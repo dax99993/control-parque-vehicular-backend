@@ -3,19 +3,22 @@ use anyhow::Context;
 use sqlx::PgPool;
 
 use crate::authentication::jwt_session::JwtSession;
-use crate::api_response::{ApiResponse, e500, e403};
+use crate::api_response::{ApiResponse, e500, e403, e400};
 use crate::models::user::{User, FilteredUser};
-use crate::telemetry::spawn_blocking_with_tracing;
+//use crate::telemetry::spawn_blocking_with_tracing;
 
-use super::utils::{get_users, get_user_by_id};
+use super::utils::{get_users, get_user_by_id, delete_user_by_id};
 
-
-pub async fn user_get_all(
+#[tracing::instrument(
+    name = "Get all users",
+    skip_all
+)]
+pub async fn users_get_all(
     jwt_session: JwtSession,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, actix_web::Error> {
     
-    let user = get_user_by_id(&pool, jwt_session.user_id).await
+    let user = get_user_by_id(&pool, &jwt_session.user_id).await
         .map_err(|_| e500())?;
     match user {
         Some(user) => {
@@ -23,8 +26,88 @@ pub async fn user_get_all(
                 let users = get_users(&pool).await
                     .map_err(|_| e500())?;
                 let api_response = ApiResponse::<Vec<User>>::new()
-                    .with_message("Users info")
+                    .with_message("List of Users")
                     .with_data(users)
+                    .to_resp();
+                Ok(api_response)
+            } else {
+                return Err(e403().with_message("You dont have required privilege"))?;
+            }
+        },
+        None => {
+            return Err(e500())?;
+        }
+    }
+}
+
+#[tracing::instrument(
+    name = "Get user",
+    skip(jwt_session, pool)
+)]
+pub async fn users_get_user_by_id(
+    jwt_session: JwtSession,
+    pool: web::Data<PgPool>,
+    uuid: web::Path<Uuid>,
+) -> Result<HttpResponse, actix_web::Error> {
+    
+    let user = get_user_by_id(&pool, &jwt_session.user_id).await
+        .map_err(|_| e500())?;
+    match user {
+        Some(user) => {
+            if user.is_admin() {
+                let user = get_user_by_id(&pool, &uuid).await
+                    .map_err(|_| e500())?;
+                if user.is_none() {
+                    return Err(e400().with_message("Non existing user"))?;
+                }
+
+                let api_response = ApiResponse::<User>::new()
+                    .with_message("Query Users")
+                    .with_data(user.unwrap())
+                    .to_resp();
+                Ok(api_response)
+            } else {
+                return Err(e403().with_message("You dont have required privilege"))?;
+            }
+        },
+        None => {
+            return Err(e500())?;
+        }
+    }
+}
+
+
+#[tracing::instrument(
+    name = "Delete user",
+    skip(jwt_session, pool)
+)]
+pub async fn users_delete_user_by_id(
+    jwt_session: JwtSession,
+    pool: web::Data<PgPool>,
+    uuid: web::Path<Uuid>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let uuid = uuid.into_inner();
+    
+    let user = get_user_by_id(&pool, &jwt_session.user_id).await
+        .map_err(|_| e500())?;
+    match user {
+        Some(user) => {
+            if user.is_admin() {
+                let other_user = get_user_by_id(&pool, &uuid).await
+                    .map_err(|_| e500())?;
+                if other_user.is_none() {
+                    return Err(e400().with_message("Non existing user"))?;
+                }
+                let other_user = other_user.unwrap();
+                if other_user.is_admin() {
+                    return Err(e403().with_message("Cannot delete admin user"))?;
+                }
+
+                delete_user_by_id(&pool, &uuid).await
+                    .map_err(|_| e500())?;
+                
+                let api_response = ApiResponse::<()>::new()
+                    .with_message("User deleted")
                     .to_resp();
                 Ok(api_response)
             } else {

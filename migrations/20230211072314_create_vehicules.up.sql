@@ -1,5 +1,4 @@
 -- Add up migration script here
-CREATE TYPE vehicule_state AS ENUM ('active', 'occupied', 'maintenance');
 
 CREATE TABLE IF NOT EXISTS vehicules
 (
@@ -13,9 +12,9 @@ CREATE TABLE IF NOT EXISTS vehicules
     number_card TEXT NOT NULL DEFAULT '',
     --latitude DECIMAL(9, 6) DEFAULT 22.761202,
     --longitude DECIMAL(9, 6) DEFAULT -102.579088,
-    state vehicule_state NOT NULL DEFAULT 'active',
-    active BOOLEAN DEFAULT TRUE,
-    picture TEXT NOT NULL DEFAULT 'static/vehicule.jpg',
+    status TEXT NOT NULL DEFAULT 'available' CHECK( status IN ('available', 'occupied', 'maintenance') ),
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    picture TEXT NOT NULL DEFAULT 'uploads/vehicules/default-picture.jpeg',
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     --CONSTRAINT bounded_latitude CHECK (latitude >= -90.0 AND latitude < 90.0),

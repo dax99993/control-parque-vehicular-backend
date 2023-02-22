@@ -1,3 +1,3 @@
 pub mod image;
 
-pub use image::get_image;
+pub use self::image::get_image;

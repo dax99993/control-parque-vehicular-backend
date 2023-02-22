@@ -22,9 +22,11 @@ argon2 = { version = "0.4.1", features = ["std"] }
 chrono = { version = "0.4.23", features = ["serde"] }
 config = "0.13.3"
 futures = "0.3.26"
+image = "0.24.5"
 jsonwebtoken = "8.2.0"
 lettre = { version = "0.10.2", features = ["serde", "tracing", "tokio1", "tokio1-native-tls"] }
 lettre_email = "0.9.4"
+mime = "0.3.16"
 #nonblock-logger = { version = "0.2.2", features = ["color", "dbg"] }
 rand = { version = "0.8.5", features = ["std_rng"] }
 redis = { version = "0.22.3", features = ["tokio-comp", "tokio-native-tls-comp", "connection-manager"] }
