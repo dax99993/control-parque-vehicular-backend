@@ -19,11 +19,9 @@ use crate::routes::users;
 // Static image routes
 use crate::routes::get_image;
 // Department routes
-use crate::routes::{departments_get,
-department_get_with_id, department_post_with_name, department_delete_with_id, department_patch};
+use crate::routes::department;
 // Vehicule routes
 use crate::routes::vehicules;
-//{get_all_vehicules, get_vehicule, post_new_vehicule, delete_vehicule};
 
 
 use tracing_actix_web::TracingLogger;
@@ -145,16 +143,16 @@ async fn run(
                     )
                     .service(
                         web::scope("/departments")
-                            .wrap(from_fn(reject_anonymous_user))
-                            .route("", web::get().to(departments_get))
-                            .route("/{id}", web::get().to(department_get_with_id))
-                            .route("/{name}", web::post().to(department_post_with_name))
-                            .route("/{id}", web::delete().to(department_delete_with_id))
-                            .route("/{id}", web::patch().to(department_patch))
+                            //.wrap(from_fn(reject_anonymous_user))
+                            .route("", web::get().to(department::get::departments_get))
+                            .route("/{id}", web::get().to(department::get::department_get))
+                            .route("/{name}", web::post().to(department::post::department_post))
+                            .route("/{id}", web::delete().to(department::delete::delete_department))
+                            .route("/{id}", web::patch().to(department::patch::patch_department))
                     )
                     .service(
                         web::scope("/vehicules")
-                            .wrap(from_fn(reject_anonymous_user))
+                            //.wrap(from_fn(reject_anonymous_user))
                             // Admin and normal routes
                             .route("", web::get().to(vehicules::get::get_all_vehicules))
                             // Admin routes
@@ -166,7 +164,7 @@ async fn run(
                     )
                     .service(
                         web::scope("/users")
-                            .wrap(from_fn(reject_anonymous_user))
+                            //.wrap(from_fn(reject_anonymous_user))
                             // Me routes
                             .route("/me", web::get().to(users::me::get::user_get_me))
                             .route("/me", web::patch().to(users::me::patch::user_patch_me))
