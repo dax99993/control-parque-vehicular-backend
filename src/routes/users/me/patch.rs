@@ -6,41 +6,12 @@ use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500};
 use crate::models::user::{User, FilteredUser};
 
-use super::utils::get_user_by_id;
+use crate::routes::users::utils::get_user_by_id_sqlx;
 
 
-pub async fn user_get_me(
-    jwt_session: JwtSession,
-    pool: web::Data<PgPool>,
-) -> Result<HttpResponse, actix_web::Error> {
-    
-    let user = get_user_by_id(&pool, &jwt_session.user_id).await
-        .map_err(|_| e500())?;
-    match user {
-        Some(user) => {
-            if user.is_admin() {
-                let api_response = ApiResponse::<User>::new()
-                    .with_message("Your user info")
-                    .with_data(user)
-                    .to_resp();
-                Ok(api_response)
-            } else {
-                let filter_user = FilteredUser::from(user);
-                let api_response = ApiResponse::<FilteredUser>::new()
-                    .with_message("Your user info")
-                    .with_data(filter_user)
-                    .to_resp();
-                Ok(api_response)
-            }
-        },
-        None => {
-            return Err(e500())?;
-        }
-    }
-}
 
 use actix_multipart::Multipart;
-use futures::{StreamExt, TryStreamExt as _};
+use futures::TryStreamExt as _;
 use mime::{ Mime, IMAGE_PNG, IMAGE_JPEG, IMAGE_GIF, APPLICATION_JSON };
 
 pub async fn user_patch_me(
@@ -49,7 +20,7 @@ pub async fn user_patch_me(
     mut payload: Multipart,
     req: HttpRequest, 
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id(&pool, &jwt_session.user_id).await
+    let user = get_user_by_id_sqlx(&pool, &jwt_session.user_id).await
         .map_err(|_| e500())?;
     if user.is_none() {
         return Err(e500())?;
@@ -102,7 +73,7 @@ async fn handle_multipart(mut payload: Multipart, req: HttpRequest) -> Result<Us
 
     let max_file_size: usize = 10_000;
     let max_file_count: usize = 2;
-    let legal_filetypes: [Mime; 4] = [IMAGE_GIF, IMAGE_JPEG, IMAGE_JPEG, APPLICATION_JSON];
+    let legal_filetypes: [Mime; 4] = [IMAGE_GIF, IMAGE_PNG, IMAGE_JPEG, APPLICATION_JSON];
     let mut current_count: usize = 0;
     let dir: &str = "./uploads/users/";
     let mut picture_path = String::from("");
@@ -155,5 +126,3 @@ async fn handle_multipart(mut payload: Multipart, req: HttpRequest) -> Result<Us
     }
     Ok( UserMeMultipart { picture_name: Some(picture_path.clone()), update_body: Some(String::from_utf8(update_body).unwrap()) } )
 }
-
-

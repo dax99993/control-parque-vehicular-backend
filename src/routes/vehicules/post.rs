@@ -7,7 +7,7 @@ use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e403};
 use crate::models::vehicule::{Vehicule, NewVehicule};
 
-use crate::routes::user::utils::get_user_by_id;
+use crate::routes::users::utils::get_user_by_id_sqlx;
 
 //TODO update fn to insert picture
 //and handle picture upload in http request
@@ -51,7 +51,7 @@ pub async fn post_new_vehicule(
     pool: web::Data<PgPool>,
     vehicule: web::Json<NewVehicule>
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id(&pool, &session.user_id).await
+    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
     if user.is_none() {
        return Err(e500())?; 

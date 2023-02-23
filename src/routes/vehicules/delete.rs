@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e403, e404};
 
-use crate::routes::user::utils::get_user_by_id;
+use crate::routes::users::utils::get_user_by_id_sqlx;
 
 
 #[tracing::instrument(
@@ -40,7 +40,7 @@ pub async fn delete_vehicule(
     pool: web::Data<PgPool>,
     uuid: web::Path<Uuid>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id(&pool, &session.user_id).await
+    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
     let user = user.ok_or(e500())?;
 

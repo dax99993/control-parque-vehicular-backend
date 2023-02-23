@@ -7,7 +7,7 @@ use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e404};
 use crate::models::vehicule::{Vehicule, FilteredVehicule};
 
-use crate::routes::user::utils::get_user_by_id;
+use crate::routes::users::utils::get_user_by_id_sqlx;
 
 
 #[tracing::instrument(
@@ -44,7 +44,7 @@ pub async fn get_vehicule(
     uuid: web::Path<Uuid>,
 ) -> Result<HttpResponse, actix_web::Error> {
     // Get user making the request
-    let user = get_user_by_id(&pool, &session.user_id).await
+    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
     let user = user.ok_or(e500())?;
 
@@ -104,7 +104,7 @@ pub async fn get_all_vehicules(
     session: JwtSession,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id(&pool, &session.user_id).await
+    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
     let user = user.ok_or(e500())?;
 

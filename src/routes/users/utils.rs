@@ -11,7 +11,7 @@ use uuid::Uuid;
     name = "Query all users",
     skip_all
 )]
-pub async fn get_users(
+pub async fn get_users_sqlx(
     pool: &PgPool
 ) -> Result<Vec<User>, anyhow::Error> {
     match sqlx::query_as!(
@@ -44,7 +44,7 @@ pub async fn get_users(
     name = "Query user",
     skip(pool)
 )]
-pub async fn get_user_by_id(
+pub async fn get_user_by_id_sqlx(
     pool: &PgPool,
     user_id: &Uuid,
 ) -> Result<Option<User>, anyhow::Error>
@@ -79,7 +79,7 @@ pub async fn get_user_by_id(
     name = "Query user role",
     skip(pool)
 )]
-pub async fn get_user_role(
+pub async fn get_user_role_sqlx(
     pool: &PgPool,
     user_id: &Uuid,
 ) -> Result<Option<String>, sqlx::Error> {
@@ -112,7 +112,7 @@ pub async fn get_user_role(
     name = "Delete user query",
     skip(pool)
 )]
-pub async fn delete_user_by_id(
+pub async fn delete_user_by_id_sqlx(
     pool: &PgPool,
     user_id: &Uuid,
 ) -> Result<(), anyhow::Error> {
@@ -133,17 +133,3 @@ pub async fn delete_user_by_id(
 
     Ok(())
 }
-
-pub fn user_file_picture_namer(filename: String) -> PathBuf {
-    let uuid = Uuid::new_v4();
-    let filename = format!("{}-{}", uuid, filename);
-    let file_path = std::env::current_dir()
-        .expect("Failed to determine current directory")
-        .join("uploads")
-        .join("users")
-        .join(filename);
-
-    file_path
-}
-
-

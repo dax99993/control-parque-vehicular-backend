@@ -15,9 +15,7 @@ use crate::routes::{send_test_email, health_check};
 // Auth routes
 use crate::routes::{confirm, signup_user, login_user, logout_user};
 // User me routes
-use crate::routes::user_get_me;
-// Users routes
-use crate::routes::{users_get_all, users_get_user_by_id, users_delete_user_by_id, user_patch};
+use crate::routes::users;
 // Static image routes
 use crate::routes::get_image;
 // Department routes
@@ -171,13 +169,13 @@ async fn run(
                         web::scope("/users")
                             .wrap(from_fn(reject_anonymous_user))
                             // Me routes
-                            .route("/me", web::get().to(user_get_me))
-                            //.route("/me", web::patch().to(user_patch_me))
+                            .route("/me", web::get().to(users::me::get::user_get_me))
+                            .route("/me", web::patch().to(users::me::patch::user_patch_me))
                             // Admin routes
-                            .route("", web::get().to(users_get_all))
-                            .route("/{uuid}", web::get().to(users_get_user_by_id))
-                            .route("/{uuid}", web::delete().to(users_delete_user_by_id))
-                            .route("/multipart", web::patch().to(user_patch))
+                            .route("", web::get().to(users::get::users_get_all))
+                            .route("/{uuid}", web::get().to(users::get::users_get_user_by_id))
+                            .route("/{uuid}", web::delete().to(users::delete::users_delete_user_by_id))
+                            .route("/multipart", web::patch().to(users::patch::user_patch))
 
                     )
             )
