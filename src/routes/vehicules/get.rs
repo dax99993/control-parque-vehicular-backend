@@ -14,7 +14,7 @@ use crate::routes::user::utils::get_user_by_id;
     name = "Query vehicule",
     skip(pool)
 )]
-async fn get_vehicule_sqlx(
+pub async fn get_vehicule_sqlx(
     pool: &PgPool,
     uuid: &Uuid,
 ) -> Result<Option<Vehicule>, anyhow::Error> {

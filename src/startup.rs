@@ -164,7 +164,7 @@ async fn run(
                             .route("/{uuid}", web::get().to(vehicules::get::get_vehicule))
                             .route("", web::post().to(vehicules::post::post_new_vehicule))
                             .route("/{uuid}", web::delete().to(vehicules::delete::delete_vehicule))
-                            //.route("/multipart", web::patch().to(user_patch))
+                            .route("/{uuid}", web::patch().to(vehicules::patch::patch_vehicule))
 
                     )
                     .service(

@@ -61,7 +61,7 @@ pub struct NewVehicule {
     //pub picture: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct UpdateVehicule {
     pub branch: Option<String>,
     pub model: Option<String>,
@@ -73,6 +73,8 @@ pub struct UpdateVehicule {
     pub active: Option<bool>,
     pub picture: Option<String>,
 }
+
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilteredVehicule {
