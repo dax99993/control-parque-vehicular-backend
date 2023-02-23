@@ -74,3 +74,33 @@ pub struct UpdateVehicule {
     pub picture: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FilteredVehicule {
+    pub vehicule_id: Uuid,
+    pub branch: String,
+    pub model: String,
+    pub year: i16,
+    pub number_plate: String,
+    pub short_name: String,
+    pub number_card: String,
+    //pub status: String,
+    //pub active: bool,
+    pub picture: String,
+    //pub created_at: NaiveDateTime,
+    //pub updated_at: NaiveDateTime,
+}
+
+impl FilteredVehicule {
+    pub fn from(veh: Vehicule) -> Self {
+        Self { 
+            vehicule_id: veh.vehicule_id,
+            branch: veh.branch,
+            model: veh.model,
+            year: veh.year,
+            number_plate: veh.number_plate,
+            short_name: veh.short_name,
+            number_card: veh.number_card,
+            picture: veh.picture,
+        }
+    }
+}

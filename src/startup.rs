@@ -24,7 +24,8 @@ use crate::routes::get_image;
 use crate::routes::{departments_get,
 department_get_with_id, department_post_with_name, department_delete_with_id, department_patch};
 // Vehicule routes
-use crate::routes::{get_all_vehicules, get_vehicule, post_new_vehicule, delete_vehicule};
+use crate::routes::vehicules;
+//{get_all_vehicules, get_vehicule, post_new_vehicule, delete_vehicule};
 
 
 use tracing_actix_web::TracingLogger;
@@ -158,11 +159,11 @@ async fn run(
                         web::scope("/vehicules")
                             .wrap(from_fn(reject_anonymous_user))
                             // Admin and normal routes
-                            .route("", web::get().to(get_all_vehicules))
+                            .route("", web::get().to(vehicules::get::get_all_vehicules))
                             // Admin routes
-                            .route("/{uuid}", web::get().to(get_vehicule))
-                            .route("", web::post().to(post_new_vehicule))
-                            .route("/{uuid}", web::delete().to(delete_vehicule))
+                            .route("/{uuid}", web::get().to(vehicules::get::get_vehicule))
+                            .route("", web::post().to(vehicules::post::post_new_vehicule))
+                            .route("/{uuid}", web::delete().to(vehicules::delete::delete_vehicule))
                             //.route("/multipart", web::patch().to(user_patch))
 
                     )
