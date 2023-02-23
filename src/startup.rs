@@ -13,7 +13,7 @@ use sqlx::postgres::PgPoolOptions;
 
 use crate::routes::{send_test_email, health_check};
 // Auth routes
-use crate::routes::{confirm, signup_user, login_user, logout_user};
+use crate::routes::auth;
 // User me routes
 use crate::routes::users;
 // Static image routes
@@ -130,19 +130,18 @@ async fn run(
                     .route("/email-check", web::get().to(send_test_email))
                     .service(
                         web::scope("/auth")
-                            .route("/signup", web::post().to(signup_user))
-                            .route("/signups/confirm", web::get().to(confirm))
-                            .route("/login", web::post().to(login_user))
+                            .route("/signup", web::post().to(auth::register::signup_user))
+                            .route("/signups/confirm", web::get().to(auth::signup_confirm::confirm))
+                            .route("/login", web::post().to(auth::login::login_user))
                             .service(
                                 web::resource("/logout")
                                     .wrap(from_fn(reject_anonymous_user))
-                                    .route(web::get().to(logout_user))
+                                    .route(web::get().to(auth::logout::logout_user))
                             )
                     )
                     .service(
                         web::scope("/images")
                             .route("", web::get().to(get_image))
-                        //Files::new("/images", "./uploads/").show_files_listing()
                     )
                     .service(
                         web::scope("/departments")

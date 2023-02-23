@@ -1,7 +1,7 @@
-use crate::error::error_chain_fmt;
 use actix_web::{HttpResponse, web, ResponseError};
 use sqlx::PgPool;
 use uuid::Uuid;
+use crate::error::error_chain_fmt;
 
 #[derive(thiserror::Error)]
 pub enum VerifyError {

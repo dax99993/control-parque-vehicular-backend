@@ -3,8 +3,8 @@ use sqlx::PgPool;
 
 use crate::api_response::{ApiResponse, e500, e401};
 use crate::authentication::jwt_session::{create_jwt, HmacKey};
-use crate::models::user::LoginUser;
 use crate::authentication::{Credentials, validate_credentials, AuthError};
+use crate::models::user::LoginUser;
 
 
 #[tracing::instrument(
@@ -17,6 +17,7 @@ pub async fn login_user(
     body: web::Json<LoginUser>,
     key:  web::Data<HmacKey>,
 ) -> Result<HttpResponse, actix_web::Error> {
+
     let credentials = Credentials {
         email: body.0.email,
         password: body.0.password,
@@ -37,7 +38,12 @@ pub async fn login_user(
                 }
             };
 
-            Ok(ApiResponse::<_>::new().with_message("Token created").with_data(token).to_resp())
+            let api_response = ApiResponse::<String>::new()
+               .with_message("Token created")
+               .with_data(token)
+               .to_resp();
+
+            Ok(api_response)
         },
         Err(e) => {
             let api_response =  match e {

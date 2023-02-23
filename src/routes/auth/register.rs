@@ -15,7 +15,8 @@ use validator::Validate;
 
 #[tracing::instrument(
     name = "Signup user",
-    skip(body, pool, email_client, base_url)
+    skip_all,
+    fields(user_id=tracing::field::Empty)
 )]
 pub async fn signup_user(
     pool: web::Data<PgPool>,
@@ -46,7 +47,6 @@ pub async fn signup_user(
     /* verify if user with given email exists, in case it does conflict */
     let user_exists = exists_user_with_email(&mut transaction, &signup_user.email)
         .await
-        .context("Failed to query existing user.")
         .map_err(|_| e500())?;
 
     if user_exists {
@@ -60,6 +60,7 @@ pub async fn signup_user(
         .map_err(|_| e500())?;
     tracing::Span::current()
         .record("user_id", &tracing::field::display(&user_id));
+
     // generate signup token
     let signup_token = generate_signup_token();
     store_token(&mut transaction, user_id, &signup_token)
@@ -68,6 +69,7 @@ pub async fn signup_user(
     transaction.commit()
         .await
         .map_err(|_| e500())?;
+
     //send email to verify user
     send_confirmation_email(&email_client, &base_url.0, &user_email, &signup_token)
         .await
@@ -75,7 +77,10 @@ pub async fn signup_user(
 
     // Maybe change Created to Accepted due to email not being sent
     Ok(
-        ApiResponse::<()>::new().with_message("User created").to_resp()
+        ApiResponse::<()>::new()
+            .with_status_code(201)
+            .with_message("User created")
+            .to_resp()
      )
 }
 
@@ -114,7 +119,7 @@ async fn insert_user(
     user: SignupUser,
 ) -> Result<uuid::Uuid, anyhow::Error> {
     let password_hash = spawn_blocking_with_tracing(
-        move || compute_password_hash(user.password)
+            move || compute_password_hash(user.password)
         )
         .await?
         .context("Failed to hash password")?;
