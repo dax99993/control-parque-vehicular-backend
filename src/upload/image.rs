@@ -62,6 +62,7 @@ pub async fn handle_picture_multipart(
     mut payload: Multipart,
     req: HttpRequest,
     save_path: &str,
+    resize: Option<(u32,u32)>,
 ) -> Result<(), anyhow::Error> {
 
     let content_length: usize = match req.headers().get(CONTENT_LENGTH) {
@@ -100,7 +101,7 @@ pub async fn handle_picture_multipart(
     } else {
         let save_path = format!("{}", save_path);
         web::block(move || async move {
-            save_image(image_bytes, &save_path, Some((1024,1024))).await
+            save_image(image_bytes, &save_path, resize).await
         })
         .await
         .map_err(|_| anyhow::anyhow!("Couldnt create threadpool"))?

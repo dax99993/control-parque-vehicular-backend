@@ -1,10 +1,9 @@
-use actix_web::{HttpResponse, web, HttpRequest,  http::header::CONTENT_LENGTH };
+use actix_web::{HttpResponse, web, HttpRequest};
 use sqlx::PgPool;
-use uuid::Uuid;
 
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500};
-use crate::models::user::{User, FilteredUser, UpdateUserMe};
+use crate::models::user::{FilteredUser, UpdateUserMe};
 
 use crate::routes::users::utils::{get_user_by_id_sqlx, update_user_sqlx, update_user_picture_sqlx};
 
@@ -21,8 +20,8 @@ pub async fn user_patch_me(
     let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
     let user = user.ok_or(e500())?;
-
-
+    
+    // may add possibility of updating email
     let update_body = body.into_inner();
     let user = user.update_me(update_body);
     let updated_user = update_user_sqlx(&pool, user).await
@@ -30,7 +29,7 @@ pub async fn user_patch_me(
 
     let filter_user = FilteredUser::from(updated_user);
     let api_response = ApiResponse::<FilteredUser>::new()
-        .with_message("Your new user info")
+        .with_message("Updated user info")
         .with_data(filter_user)
         .to_resp();
     Ok(api_response)
@@ -55,7 +54,8 @@ pub async fn user_picture_patch_me(
 
     let picture_path = format!("./uploads/users/{}.jpeg", user.user_id);
     
-    handle_picture_multipart(payload, req, &picture_path).await
+    // Need to add a better error handling for this function
+    handle_picture_multipart(payload, req, &picture_path, Some((1024,1024))).await
         .map_err(|_| e500())?;
     user.picture = picture_path;
     let updated_user = update_user_picture_sqlx(&pool, user).await
@@ -68,7 +68,4 @@ pub async fn user_picture_patch_me(
         .to_resp();
     Ok(api_response)
 }
-
-
-
 

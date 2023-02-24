@@ -42,7 +42,7 @@ impl User {
         self.verified = user.verified.unwrap_or_else(|| self.verified); 
         self.department = user.department.unwrap_or_else(|| self.department);
         self.role = user.role.unwrap_or_else(|| self.role);
-        //self.email = user.email.unwrap_or_else(|| self.email);
+        self.email = user.email.unwrap_or_else(|| self.email);
         //self.picture: user.picture,
 
         self
@@ -115,6 +115,7 @@ pub struct UpdateUser {
     pub employee_number: Option<Option<i16>>,
     pub active: Option<bool>,
     pub verified: Option<bool>,
+    pub email: Option<String>,
     //pub picture: Option<String>,
     pub department: Option<Option<i32>>,
     pub role: Option<String>,

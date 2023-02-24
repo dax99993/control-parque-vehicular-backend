@@ -168,11 +168,13 @@ async fn run(
                             .route("/me", web::get().to(users::me::get::user_get_me))
                             .route("/me", web::patch().to(users::me::patch::user_patch_me))
                             .route("/me/picture", web::patch().to(users::me::patch::user_picture_patch_me))
+                            //.route("/me/picture", web::delete().to(users::me::delete::user_picture_delete_me))
                             // Admin routes
                             .route("", web::get().to(users::get::users_get_all))
                             .route("/{uuid}", web::get().to(users::get::users_get_user_by_id))
                             .route("/{uuid}", web::delete().to(users::delete::users_delete_user_by_id))
-                            .route("/multipart", web::patch().to(users::patch::user_patch))
+                            .route("/{uuid}", web::patch().to(users::patch::user_patch))
+                            .route("/picture/{uuid}", web::patch().to(users::patch::user_picture_patch))
 
                     )
             )

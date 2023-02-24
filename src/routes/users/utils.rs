@@ -147,6 +147,7 @@ pub async fn update_user_sqlx(
         verified = $6,
         department = $7,
         role = $8,
+        email = $9,
         updated_at = now()
         WHERE user_id = $1
         RETURNING *
@@ -159,6 +160,7 @@ pub async fn update_user_sqlx(
         user.verified,
         user.department,
         user.role,
+        user.email,
     )
     .fetch_one(pool)
     .await
