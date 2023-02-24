@@ -1,92 +1,61 @@
-use actix_web::{HttpResponse, web};
-use anyhow::Context;
+use actix_web::{HttpResponse, web, HttpRequest};
+//use anyhow::Context;
 use sqlx::PgPool;
-
-use crate::authentication::jwt_session::JwtSession;
-use crate::api_response::{ApiResponse, e500, e403, e400};
-use crate::models::user::{User, FilteredUser};
-//use crate::telemetry::spawn_blocking_with_tracing;
-
-//use super::utils::{get_users_sqlx, get_user_by_id_sqlx, delete_user_by_id_sqlx};
-
-
-
-
-use actix_multipart::Multipart;
-use futures::{StreamExt, TryStreamExt};
-use std::io::Write;
 use uuid::Uuid;
 
+use crate::authentication::jwt_session::JwtSession;
+use crate::api_response::{ApiResponse, e500, e403, e404};
+use crate::models::user::{User, UpdateUser};
+//use crate::telemetry::spawn_blocking_with_tracing;
+
+use super::utils::{get_user_by_id_sqlx, update_user_sqlx};
 
 
 #[tracing::instrument(
-    name = "Save file",
-    skip(file_data)
-)]
-async fn save_file(filepath: String, file_data: Vec<u8>) -> Result<(), anyhow::Error> {
-    // File::create is blocking operation, use threadpool
-    //let mut f = web::block(|| std::fs::File::create(filepath)).await??;
-    let mut f = web::block(|| std::fs::File::create(filepath)).await
-        .context("Couldn't create file with given filepath")?
-        .context("Couldn't create blocking operation")?;
-    // filesystem operations are blocking, we have to use threadpool
-    web::block(move || f.write_all(&file_data)).await
-        .context("Couldn't write file with given file_data")?
-        .context("Couldn't create blocking operation")?;
-
-    Ok(())
-}
-
-#[tracing::instrument(
-    name = "Patch using Multipart",
-    skip(payload)
+    name = "Patch User",
+    skip(session, pool)
 )]
 pub async fn user_patch(
-    mut payload: Multipart,
+    session: JwtSession,
+    pool: web::Data<PgPool>,
+    uuid: web::Path<Uuid>,
+    update_body: web::Json<UpdateUser>
+    //mut payload: Multipart,
+    //mut payload: Multipart,
 ) -> Result<HttpResponse, actix_web::Error> {
-    // iterate over multipart stream
-    let mut picture_filepath = String::from("");
-    let mut picture: Vec<u8> = vec![];
-    let mut body: Vec<u8> = vec![];
+    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?;
+    if user.is_none() {
+       return Err(e500())?; 
+    }
+    let user = user.unwrap();
+    if !user.is_admin() {
+        return Err(e403().with_message("You dont have required privilege"))?;
+    }
+
+    let other_user = get_user_by_id_sqlx(&pool, &uuid).await
+        .map_err(|_| e500())?;
+    if other_user.is_none() {
+       return Err(e404().with_message("User not found"))?; 
+    }
+    let other_user = other_user.unwrap();
+    if other_user.is_admin() && user.user_id != other_user.user_id {
+       return Err(e403().with_message("Cannot patch other admin users"))?; 
+    }
+
+    // Get the patch update_body data
+    // parse it into UpdateUser struct
+    let update_body = update_body.into_inner();
+    // update other_user
+    let updated_user = other_user.update(update_body);
+    // query to database
+    let updated_user = update_user_sqlx(&pool, updated_user).await
+        .map_err(|_| e500())?;
+    // return updated user
+    let api_response = ApiResponse::<User>::new()
+        .with_message("Updated user")
+        .with_data(updated_user)
+        .to_resp();
     
-    while let Some(mut field) = payload.try_next().await? {
-        // A multipart/form-data stream has to contain `content_disposition`
-        let content_disposition = field.content_disposition();
-        
-        match field.name() {
-            "picture" => {
-                // inspect field content_type and check it contains image
-                let filename = content_disposition
-                    .get_filename()
-                    .map(|n| format!("{}-{}",Uuid::new_v4().to_string(), n))
-                    .unwrap();
-                //.map_or_else(|| Uuid::new_v4().to_string(), sanitize_filename::sanitize);
-                picture_filepath= format!("./tmp/{filename}");
-
-                // Field in turn is stream of *Bytes* object
-                while let Some(chunk) = field.try_next().await? {
-                    picture.extend_from_slice(&chunk);
-                }
-            },
-            "body" => {
-                dbg!(&field);
-                while let Some(chunk) = field.try_next().await? {
-                    body.extend_from_slice(&chunk);
-                }
-            },
-            _ => {
-                dbg!(field);
-            },
-        }
-
-    }
-    let json: FilteredUser = serde_json::from_slice(&body).unwrap();
-    dbg!(&json);
-
-    if !picture.is_empty() {
-        save_file(picture_filepath.clone(), picture).await
-            .map_err(|_| e500())?;
-    }
-
-    Ok( HttpResponse::Ok().finish() )
+    Ok(api_response)
 }

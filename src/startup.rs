@@ -1,4 +1,3 @@
-
 use std::net::TcpListener;
 
 use crate::authentication::{jwt_session::HmacKey, middleware::reject_anonymous_user};
@@ -168,6 +167,7 @@ async fn run(
                             // Me routes
                             .route("/me", web::get().to(users::me::get::user_get_me))
                             .route("/me", web::patch().to(users::me::patch::user_patch_me))
+                            .route("/me/picture", web::patch().to(users::me::patch::user_picture_patch_me))
                             // Admin routes
                             .route("", web::get().to(users::get::users_get_all))
                             .route("/{uuid}", web::get().to(users::get::users_get_user_by_id))

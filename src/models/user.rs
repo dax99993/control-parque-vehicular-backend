@@ -26,27 +26,6 @@ pub struct User {
 }
 
 impl User {
-    /*
-    pub fn new(first_name: String, last_name: String) -> Self {
-        Self {
-            id: 32,
-            first_name,
-            last_name,
-            status: UserStatus::Normal,
-            created_at: Some(Utc::now()),
-            updated_at: None,
-        }
-    }
-    */
-
-    pub fn to_admin(&mut self) {
-        self.role = "admin".to_string();
-    }
-
-    pub fn to_normal(&mut self) {
-        self.role = "normal".to_string();
-    }
-
     pub fn is_admin(&self) -> bool {
         self.role == "admin".to_string()
     }
@@ -54,7 +33,33 @@ impl User {
     pub fn is_normal(&self) -> bool {
         self.role == "normal".to_string()
     }
+
+    pub fn update(mut self, user: UpdateUser) -> Self {
+        self.first_name =  user.first_name.unwrap_or_else(|| self.first_name);
+        self.last_name = user.last_name.unwrap_or_else(|| self.last_name);
+        self.employee_number = user.employee_number.unwrap_or_else(|| self.employee_number); 
+        self.active = user.active.unwrap_or_else(|| self.active); 
+        self.verified = user.verified.unwrap_or_else(|| self.verified); 
+        self.department = user.department.unwrap_or_else(|| self.department);
+        self.role = user.role.unwrap_or_else(|| self.role);
+        //self.email = user.email.unwrap_or_else(|| self.email);
+        //self.picture: user.picture,
+
+        self
+    }
+
+    pub fn update_me(mut self, user: UpdateUserMe) -> Self {
+        self.first_name =  user.first_name.unwrap_or_else(|| self.first_name);
+        self.last_name = user.last_name.unwrap_or_else(|| self.last_name);
+        self.employee_number = user.employee_number.unwrap_or_else(|| self.employee_number); 
+        self.department = user.department.unwrap_or_else(|| self.department);
+        //self.email = user.email.unwrap_or_else(|| self.email);
+        //self.picture: user.picture,
+
+        self
+    }
      
+
 }
 
 
@@ -85,8 +90,8 @@ pub struct FilteredUser {
     pub last_name: String,
     pub email: String,
     pub employee_number: Option<i16>,
-    pub picture: String,
     pub department: Option<i32>,
+    pub picture: String,
 }
 
 impl FilteredUser {
@@ -102,6 +107,28 @@ impl FilteredUser {
     }
 }
 
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct UpdateUser {
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub employee_number: Option<Option<i16>>,
+    pub active: Option<bool>,
+    pub verified: Option<bool>,
+    //pub picture: Option<String>,
+    pub department: Option<Option<i32>>,
+    pub role: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct UpdateUserMe {
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub employee_number: Option<Option<i16>>,
+    //pub email: Option<String>,
+    //pub picture: Option<String>,
+    pub department: Option<Option<i32>>,
+}
 
 /*
 #[derive(Serialize, Deserialize, Debug, Clone)]

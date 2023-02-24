@@ -3,6 +3,7 @@ pub mod api_response;
 pub mod configuration;
 pub mod email_client;
 pub mod error;
+pub mod upload;
 pub mod models;
 pub mod startup;
 pub mod telemetry;
