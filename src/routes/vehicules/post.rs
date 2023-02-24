@@ -53,11 +53,8 @@ pub async fn post_new_vehicule(
 ) -> Result<HttpResponse, actix_web::Error> {
     let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
-    if user.is_none() {
-       return Err(e500())?; 
-    }
-    
-    if !user.unwrap().is_admin() {
+    let user = user.ok_or(e500())?;
+    if !user.is_admin() {
         return Err(e403().with_message("You dont have required privilege"))?;
     }
 

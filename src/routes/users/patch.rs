@@ -12,7 +12,7 @@ use super::utils::{get_user_by_id_sqlx, update_user_sqlx, update_user_picture_sq
 
 
 #[tracing::instrument(
-    name = "Patch User",
+    name = "Patch User by id",
     skip(session, pool)
 )]
 pub async fn user_patch(
@@ -58,7 +58,7 @@ use actix_multipart::Multipart;
 use crate::upload::image::handle_picture_multipart;
 
 #[tracing::instrument(
-    name = "Patch user picture",
+    name = "Patch user picture by id",
     skip(session, pool, payload, req)
 )]
 pub async fn user_picture_patch(

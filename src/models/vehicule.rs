@@ -42,7 +42,7 @@ impl Vehicule {
         self.number_card= update.number_card.unwrap_or_else(|| self.number_card);
         self.status= update.status.unwrap_or_else(|| self.status);
         self.active= update.active.unwrap_or_else(|| self.active);
-        self.picture= update.picture.unwrap_or_else(|| self.picture);
+        //self.picture= update.picture.unwrap_or_else(|| self.picture);
 
         self
     }
@@ -71,7 +71,7 @@ pub struct UpdateVehicule {
     pub number_card: Option<String>,
     pub status: Option<String>,
     pub active: Option<bool>,
-    pub picture: Option<String>,
+    //pub picture: Option<String>,
 }
 
 

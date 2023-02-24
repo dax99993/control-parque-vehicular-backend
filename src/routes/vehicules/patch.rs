@@ -1,7 +1,7 @@
-use actix_multipart::Multipart;
 use actix_web::{HttpResponse, web, HttpRequest};
 use anyhow::Context;
 use sqlx::PgPool;
+use uuid::Uuid;
 
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e400, e403, e404};
@@ -11,14 +11,6 @@ use crate::routes::users::utils::get_user_by_id_sqlx;
 use super::get::get_vehicule_sqlx;
 
 
-use uuid::Uuid;
-use tokio::io::AsyncWriteExt as _;
-use image::{ DynamicImage, imageops::FilterType };
-use actix_web::http::header::CONTENT_LENGTH;
-//use futures::{StreamExt, TryStreamExt as _};
-use futures::TryStreamExt as _;
-use mime::{ Mime, IMAGE_PNG, IMAGE_JPEG, IMAGE_GIF, APPLICATION_JSON};
-use crate::error::error_chain_fmt;
 
 #[tracing::instrument(
     name = "Updated vehicule query",
@@ -66,15 +58,12 @@ pub async fn patch_vehicule(
     session: JwtSession,
     pool: web::Data<PgPool>,
     uuid: web::Path<Uuid>,
-    payload: Multipart,
-    req: HttpRequest,
+    body: web::Json<UpdateVehicule>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
-    if user.is_none() {
-       return Err(e500())?; 
-    }
-    if !user.unwrap().is_admin() {
+    let user = user.ok_or(e500())?;
+    if !user.is_admin() {
         return Err(e403().with_message("You dont have required privilege"))?;
     }
 
@@ -82,6 +71,49 @@ pub async fn patch_vehicule(
         .map_err(|_| e500())?;
     let vehicule = vehicule.ok_or(e404().with_message("Vehicule not found"))?;
 
+
+    let update_body = body.into_inner();
+    let vehicule = vehicule.update(update_body);
+
+    let updated_vehicule = update_vehicule_sqlx(&pool, vehicule).await
+        .map_err(|_| e500())?;
+
+    let api_response = ApiResponse::<Vehicule>::new()
+        .with_message("Updated vehicule")
+        .with_data(updated_vehicule)
+        .to_resp();
+
+    Ok(api_response)
+}
+
+use actix_multipart::Multipart;
+use crate::upload::image::handle_picture_multipart;
+
+#[tracing::instrument(
+    name = "Patch vehicule picture",
+    skip(session, pool, payload, req)
+)]
+pub async fn patch_vehicule_picture(
+    session: JwtSession,
+    pool: web::Data<PgPool>,
+    uuid: web::Path<Uuid>,
+    payload: Multipart,
+    req: HttpRequest,
+) -> Result<HttpResponse, actix_web::Error> {
+    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?;
+    let user = user.ok_or(e500())?;
+    if !user.is_admin() {
+        return Err(e403().with_message("You dont have required privilege"))?;
+    }
+
+    let vehicule = get_vehicule_sqlx(&pool, &uuid).await
+        .map_err(|_| e500())?;
+    let mut vehicule = vehicule.ok_or(e404().with_message("Vehicule not found"))?;
+
+    let picture_path = format!("./uploads/vehicules/{}.jpeg", vehicule.vehicule_id);
+
+    /*
     let update_vehicule = match handle_multipart(payload, req).await {
         Ok(update_vehicule) => {update_vehicule},
         Err(e) => {
@@ -92,12 +124,14 @@ pub async fn patch_vehicule(
             }
         }
     };
+    */
 
-    let vehicule = vehicule.update(update_vehicule);
+    handle_picture_multipart(payload, req, &picture_path, None).await
+        .map_err(|_| e500())?;
+    vehicule.picture = picture_path;
 
     let updated_vehicule = update_vehicule_sqlx(&pool, vehicule).await
         .map_err(|_| e500())?;
-
 
     let api_response = ApiResponse::<Vehicule>::new()
         .with_message("Updated vehicule")
@@ -108,6 +142,7 @@ pub async fn patch_vehicule(
 }
 
 
+/*
 #[tracing::instrument(
     name = "Handling multipart",
     skip(payload)
@@ -270,3 +305,4 @@ impl std::fmt::Debug for HandleMultipartError {
         error_chain_fmt(self, f)
     }
 }
+*/

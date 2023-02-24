@@ -30,6 +30,8 @@ pub async fn users_delete_user_by_id(
        return Err(e403().with_message("Cannot delete other admin users"))?; 
     }
 
+    // Dont check Ok(bool) since we know uuid refers to valid user
+    // by other_user validity!
     delete_user_by_id_sqlx(&pool, &uuid).await
         .map_err(|_| e500())?;
 

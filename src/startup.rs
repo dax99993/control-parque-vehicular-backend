@@ -159,6 +159,7 @@ async fn run(
                             .route("", web::post().to(vehicules::post::post_new_vehicule))
                             .route("/{uuid}", web::delete().to(vehicules::delete::delete_vehicule))
                             .route("/{uuid}", web::patch().to(vehicules::patch::patch_vehicule))
+                            .route("/picture/{uuid}", web::patch().to(vehicules::patch::patch_vehicule_picture))
 
                     )
                     .service(

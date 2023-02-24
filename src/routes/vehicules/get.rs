@@ -64,6 +64,7 @@ pub async fn get_vehicule(
         if vehicule.is_available() && vehicule.is_active() {
             FilteredVehicule::from(vehicule)
         } else {
+            // Not too sure if it should be a 404
             return Err(e404().with_message("Vehicule not found"))?;
         };
         let api_response = ApiResponse::<FilteredVehicule>::new()
