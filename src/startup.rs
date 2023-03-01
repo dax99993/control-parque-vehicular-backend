@@ -25,6 +25,8 @@ use crate::routes::vehicules;
 
 use tracing_actix_web::TracingLogger;
 
+use actix_cors::Cors;
+
 
 //use redis::{Client, RedisResult};
 
@@ -113,10 +115,21 @@ async fn run(
     let redis_uri = web::Data::new(redis_uri);
 
 
+
     // Create the server
     let server = HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin("http://127.0.0.1:3000")
+            .allowed_methods(vec!["GET", "POST", "DELETE", "PATCH"])
+            .allowed_headers(vec![actix_web::http::header::AUTHORIZATION,
+                             actix_web::http::header::ACCEPT,
+            ])
+            .allowed_header(actix_web::http::header::CONTENT_TYPE)
+            .max_age(3600);
+
         App::new()
             .wrap(TracingLogger::default())
+            .wrap(cors)
             // Add API service
             .service(
                 web::scope("/api")
