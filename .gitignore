@@ -1,2 +1,9 @@
 /target
 .env
+uploads/vehicules/*
+!/uploads/vehicules/default-picture.jpeg
+uploads/users/*
+!/uploads/users/default-picture.jpeg
+uploads/requests/*
+
+

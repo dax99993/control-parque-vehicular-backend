@@ -111,7 +111,9 @@ pub async fn patch_vehicule_picture(
         .map_err(|_| e500())?;
     let mut vehicule = vehicule.ok_or(e404().with_message("Vehicule not found"))?;
 
-    let picture_path = format!("./uploads/vehicules/{}.jpeg", vehicule.vehicule_id);
+    let base_path = "./uploads/";
+    let picture_path = format!("vehicules/{}-{}.jpeg", vehicule.vehicule_id, Uuid::new_v4().to_string());
+    let save_path = format!("{base_path}{picture_path}");
 
     /*
     let update_vehicule = match handle_multipart(payload, req).await {
@@ -126,7 +128,7 @@ pub async fn patch_vehicule_picture(
     };
     */
 
-    handle_picture_multipart(payload, req, &picture_path, None).await
+    handle_picture_multipart(payload, req, &save_path, None).await
         .map_err(|_| e500())?;
     vehicule.picture = picture_path;
 

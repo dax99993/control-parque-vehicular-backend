@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS vehicules
     --longitude DECIMAL(9, 6) DEFAULT -102.579088,
     status TEXT NOT NULL DEFAULT 'available' CHECK( status IN ('available', 'occupied', 'maintenance') ),
     active BOOLEAN NOT NULL DEFAULT TRUE,
-    picture TEXT NOT NULL DEFAULT 'uploads/vehicules/default-picture.jpeg',
+    picture TEXT NOT NULL DEFAULT 'vehicules/default-picture.jpeg',
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     --CONSTRAINT bounded_latitude CHECK (latitude >= -90.0 AND latitude < 90.0),
