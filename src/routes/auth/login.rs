@@ -14,14 +14,19 @@ use crate::models::user::LoginUser;
 )]
 pub async fn login_user(
     pool: web::Data<PgPool>,
-    body: web::Json<LoginUser>,
+    //body: web::Json<LoginUser>,
+    body: web::Json<Credentials>,
     key:  web::Data<HmacKey>,
 ) -> Result<HttpResponse, actix_web::Error> {
 
+    /*
     let credentials = Credentials {
         email: body.0.email,
         password: body.0.password,
     };
+    */
+    let credentials = body.0;
+
     tracing::Span::current()
         .record("email", &tracing::field::display(&credentials.email));
 

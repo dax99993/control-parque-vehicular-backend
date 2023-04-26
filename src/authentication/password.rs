@@ -12,6 +12,8 @@ pub enum AuthError {
     UnexpectedError(#[from] anyhow::Error),
 }
 
+//Didnt have derive
+#[derive(Debug, serde::Deserialize)]
 pub struct Credentials {
     pub email: String,
     pub password: Secret<String>,
