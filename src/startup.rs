@@ -27,6 +27,8 @@ use tracing_actix_web::TracingLogger;
 
 use actix_cors::Cors;
 
+// Should be deleted
+use crate::routes::struct_check::{get_tests, post_test};
 
 //use redis::{Client, RedisResult};
 
@@ -136,6 +138,8 @@ async fn run(
                     // wrap all middleware
                     //.wrap()
                     // Add routes
+                    .route("/struct-check", web::get().to(get_tests))
+                    .route("/struct-check", web::post().to(post_test))
                     .route("/health-check", web::get().to(health_check))
                     .route("/email-check", web::get().to(send_test_email))
                     .service(
@@ -182,6 +186,7 @@ async fn run(
                             .route("/me", web::get().to(users::me::get::user_get_me))
                             .route("/me", web::patch().to(users::me::patch::user_patch_me))
                             .route("/me/picture", web::patch().to(users::me::patch::user_picture_patch_me))
+                            .route("/me/change-password", web::post().to(users::me::password::change_user_password))
                             //.route("/me/picture", web::delete().to(users::me::delete::user_picture_delete_me))
                             // Admin routes
                             .route("", web::get().to(users::get::users_get_all))

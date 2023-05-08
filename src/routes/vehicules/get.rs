@@ -1,38 +1,17 @@
 use actix_web::{HttpResponse, web};
 use anyhow::Context;
-use sqlx::PgPool;
+use common::models::vehicule::vehicule::FilterQueryVehicule;
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e404};
-use crate::models::vehicule::{Vehicule, FilteredVehicule};
+
+use common::models::vehicule::{Vehiculo, EstadoVehiculo, VehiculoFiltrado};
 
 use crate::routes::users::utils::get_user_by_id_sqlx;
 
 
-#[tracing::instrument(
-    name = "Query vehicule",
-    skip(pool)
-)]
-pub async fn get_vehicule_sqlx(
-    pool: &PgPool,
-    uuid: &Uuid,
-) -> Result<Option<Vehicule>, anyhow::Error> {
-    let vehicule: Option<Vehicule> = sqlx::query_as!(
-        Vehicule,
-        r#"
-        SELECT *
-        FROM vehicules
-        WHERE vehicule_id = $1
-        "#,
-        uuid
-    )
-    .fetch_optional(pool)
-    .await
-    .context("Failed to execute query")?;
-
-    Ok(vehicule)
-}
 
 #[tracing::instrument(
     name = "Get vehicule by id",
@@ -48,28 +27,28 @@ pub async fn get_vehicule(
         .map_err(|_| e500())?;
     let user = user.ok_or(e500())?;
 
-    let vehicule = get_vehicule_sqlx(&pool, &uuid).await
+    let vehiculo = get_vehiculo_sqlx(&pool, &uuid).await
         .map_err(|_| e500())?;
-    let vehicule = vehicule.ok_or(e404().with_message("Vehicule not found"))?;
+    let vehiculo = vehiculo.ok_or(e404().with_message("No se encontro el Vehiculo"))?;
 
     if user.is_admin() {
-        let api_response = ApiResponse::<Vehicule>::new()
-            .with_message("Vehicule")
-            .with_data(vehicule)
+        let api_response = ApiResponse::<Vehiculo>::new()
+            .with_message("Vehiculo")
+            .with_data(vehiculo)
             .to_resp();
         
         return Ok(api_response);
     } else {
-        let filtered_vehicule: FilteredVehicule = 
-        if vehicule.is_available() && vehicule.is_active() {
-            FilteredVehicule::from(vehicule)
+        let vehiculo_filtrado: VehiculoFiltrado = 
+        if vehiculo.estado == EstadoVehiculo::Disponible && vehiculo.activo {
+            VehiculoFiltrado::from(vehiculo)
         } else {
             // Not too sure if it should be a 404
-            return Err(e404().with_message("Vehicule not found"))?;
+            return Err(e404().with_message("No se encontro vehiculo"))?;
         };
-        let api_response = ApiResponse::<FilteredVehicule>::new()
-            .with_message("Vehicule")
-            .with_data(filtered_vehicule)
+        let api_response = ApiResponse::<VehiculoFiltrado>::new()
+            .with_message("Vehiculo")
+            .with_data(vehiculo_filtrado)
             .to_resp();
         
         return Ok(api_response);
@@ -77,60 +56,166 @@ pub async fn get_vehicule(
 }
 
 #[tracing::instrument(
-    name = "Query all vehicules",
+    name = "Query vehiculo",
     skip(pool)
 )]
-async fn get_all_vehicules_sqlx(
+pub async fn get_vehiculo_sqlx(
     pool: &PgPool,
-) -> Result<Vec<Vehicule>, anyhow::Error> {
-    let vehicules: Vec<Vehicule> = sqlx::query_as!(
-        Vehicule,
+    uuid: &Uuid,
+) -> Result<Option<Vehiculo>, anyhow::Error> {
+    let vehicule: Option<Vehiculo> = sqlx::query_as!(
+        Vehiculo,
         r#"
-        SELECT *
-        FROM vehicules
-        "#
+        SELECT 
+            vehiculo_id, marca, modelo, año,
+            numero_placa,
+            nombre_economico,
+            numero_tarjeta,
+            estado as "estado!: EstadoVehiculo",
+            activo,
+            imagen,
+            creado_en,
+            modificado_en
+        FROM vehiculos
+        WHERE vehiculo_id = $1
+        "#,
+        uuid
     )
-    .fetch_all(pool)
+    .fetch_optional(pool)
     .await
-    .context("Failed to execute query")?;
+    .context("Fallo la ejecucion del query")?;
 
-    Ok(vehicules)
+    Ok(vehicule)
 }
 
+
+
 #[tracing::instrument(
-    name = "Get all vehicules",
+    name = "Get todos los vehiculos",
     skip(pool, session)
 )]
 pub async fn get_all_vehicules(
     session: JwtSession,
     pool: web::Data<PgPool>,
+    query: web::Query<FilterQueryVehicule>
 ) -> Result<HttpResponse, actix_web::Error> {
     let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
     let user = user.ok_or(e500())?;
 
-    let vehicules = get_all_vehicules_sqlx(&pool).await
+    let query = query.into_inner();
+    let vehiculos = get_vehiculos_con_filtro_sqlx(&pool, query).await
         .map_err(|_| e500())?;
 
     if user.is_admin() {
-        let api_response = ApiResponse::<Vec<Vehicule>>::new()
-            .with_message("List of vehicules")
-            .with_data(vehicules)
+        let api_response = ApiResponse::<Vec<Vehiculo>>::new()
+            .with_message("Lista de vehiculos")
+            .with_data(vehiculos)
             .to_resp();
         
         return Ok(api_response);
     } else {
-        let filtered_vehicules: Vec<FilteredVehicule> = 
-            vehicules
+        let vehiculos_filtrados: Vec<VehiculoFiltrado> = 
+            vehiculos
             .into_iter()
-            .filter(|veh| veh.is_available() && veh.is_active())
-            .map(|v| FilteredVehicule::from(v))
+            .filter(|v| v.estado == EstadoVehiculo::Disponible && v.activo)
+            .map(|v| VehiculoFiltrado::from(v))
             .collect();
-        let api_response = ApiResponse::<Vec<FilteredVehicule>>::new()
-            .with_message("List of vehicules")
-            .with_data(filtered_vehicules)
+
+        let api_response = ApiResponse::<Vec<VehiculoFiltrado>>::new()
+            .with_message("Lista de vehiculos")
+            .with_data(vehiculos_filtrados)
             .to_resp();
         
         return Ok(api_response);
     }
+}
+
+
+#[tracing::instrument(
+    name = "Query vehiculos con filtro",
+    skip(pool)
+)]
+pub async fn get_vehiculos_con_filtro_sqlx(
+    pool: &PgPool,
+    //query: &VehiculesQuery,
+    filtro: FilterQueryVehicule,
+) -> Result<Vec<Vehiculo>, anyhow::Error> {
+
+    let mut query = sqlx::QueryBuilder::new(
+        r#"SELECT *
+        FROM (
+            SELECT 
+                vehiculo_id, marca, modelo, año,
+                numero_placa,
+                nombre_economico,
+                numero_tarjeta,
+                estado as "estado!: EstadoVehiculo",
+                activo,
+                imagen,
+                creado_en,
+                modificado_en
+            FROM vehiculos
+            ORDER BY creado_en DESC
+        ) x
+        WHERE creado_en <= now()"#);
+
+    if filtro.marca.is_some() {
+       query.push(" AND marca = ");
+       query.push_bind(filtro.marca.unwrap());
+    }
+    if filtro.modelo.is_some() {
+       query.push(" AND modelo = ");
+       query.push_bind(filtro.modelo.unwrap());
+    }
+    if filtro.año.is_some() {
+       query.push(" AND año = ");
+       query.push_bind(filtro.año.unwrap());
+    }
+    if filtro.numero_placa.is_some() {
+       query.push(" AND numero_placa = ");
+       query.push_bind(filtro.numero_placa.unwrap());
+    }
+    if filtro.estado.is_some() {
+       query.push(" AND estado = ");
+       query.push_bind(filtro.estado.unwrap());
+    }
+    if filtro.activo.is_some() {
+       query.push(" AND activo = ");
+       query.push_bind(filtro.activo.unwrap());
+    }
+
+    // add page and limiter
+    let pagina: i64 = filtro.pagina.unwrap_or(1).max(1);
+    let vehiculos_por_pagina: i64 = filtro.limite.unwrap_or(3).min(5);
+    query.push(" LIMIT ");
+    query.push_bind( vehiculos_por_pagina);
+    query.push(" OFFSET ");
+    query.push_bind((pagina - 1) * vehiculos_por_pagina );
+
+    tracing::info!("sql = {}", query.sql());
+    let rows = query.build().fetch_all(pool).await.context("Fallo el query")?;
+
+    dbg!("successful vehicules query");
+
+    let vehiculos = rows.iter().map(|r| {
+        dbg!("getting columns {}",&r.columns());
+        Vehiculo {
+            vehiculo_id: r.get("vehiculo_id"),
+            marca: r.get("marca"),
+            modelo: r.get("modelo"),
+            año: r.get("año"),
+            numero_placa: r.get("numero_placa"),
+            nombre_economico: r.get("nombre_economico"),
+            numero_tarjeta: r.get("numero_tarjeta"),
+            estado: r.get("estado!: EstadoVehiculo"),
+            activo: r.get("activo"),
+            imagen: r.get("imagen"),
+            modificado_en: r.get("modificado_en"),
+            creado_en: r.get("creado_en"),
+        }
+    }).collect();
+
+
+    Ok(vehiculos)
 }

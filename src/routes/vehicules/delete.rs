@@ -9,17 +9,17 @@ use crate::routes::users::utils::get_user_by_id_sqlx;
 
 
 #[tracing::instrument(
-    name = "Delete vehicule query",
+    name = "Query Delete vehiculo",
     skip(pool)
 )]
-async fn delete_vehicule_sqlx(
+async fn delete_vehiculo_sqlx(
     pool: &PgPool,
     uuid: &Uuid,
 ) -> Result<bool, sqlx::Error> {
     let query = sqlx::query!(
         r#"
-        DELETE FROM vehicules
-        WHERE vehicule_id = $1
+        DELETE FROM vehiculos
+        WHERE vehiculo_id = $1
         "#,
         uuid
     )
@@ -32,7 +32,7 @@ async fn delete_vehicule_sqlx(
 }
 
 #[tracing::instrument(
-    name = "Delete vehicule by id",
+    name = "Delete vehiculo por id",
     skip(pool, session)
 )]
 pub async fn delete_vehicule(
@@ -45,13 +45,13 @@ pub async fn delete_vehicule(
     let user = user.ok_or(e500())?;
 
     if !user.is_admin() {
-        return Err(e403().with_message("You dont have required privilege"))?;
+        return Err(e403().with_message("No tienes los permisos requeridos"))?;
     }
 
-    match delete_vehicule_sqlx(&pool, &uuid).await {
+    match delete_vehiculo_sqlx(&pool, &uuid).await {
         Ok(deleted) => {
             if !deleted {
-               return Err(e404().with_message("Vehicule not found"))?;
+               return Err(e404().with_message("No se encontro el Vehiculo"))?;
             }
         },
         Err(_) => { 
@@ -60,7 +60,7 @@ pub async fn delete_vehicule(
     }
 
     let api_response = ApiResponse::<()>::new()
-        .with_message("Vehicule deleted")
+        .with_message("Vehiculo borrado")
         .to_resp();
 
     Ok(api_response)

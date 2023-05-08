@@ -1,90 +1,99 @@
 use actix_web::{HttpResponse, web, HttpRequest};
 use anyhow::Context;
+use common::models::vehicule::{Vehiculo, EstadoVehiculo, ActualizaVehiculo};
 use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e400, e403, e404};
-use crate::models::vehicule::{Vehicule, UpdateVehicule};
 
 use crate::routes::users::utils::get_user_by_id_sqlx;
-use super::get::get_vehicule_sqlx;
+use super::get::get_vehiculo_sqlx;
 
 
 
 #[tracing::instrument(
-    name = "Updated vehicule query",
-    skip(pool)
-)]
-async fn update_vehicule_sqlx(
-    pool: &PgPool,
-    vehicule: Vehicule,
-) -> Result<Vehicule, anyhow::Error> {
-    let vehicule: Vehicule = sqlx::query_as!(
-        Vehicule,
-        r#"
-        UPDATE vehicules
-        SET
-        branch = $2, model = $3, year = $4,
-        number_plate = $5, short_name = $6, number_card = $7,
-        status = $8, active = $9, picture = $10,
-        updated_at = now()
-        WHERE vehicule_id = $1
-        RETURNING *
-        "#,
-        vehicule.vehicule_id,
-        vehicule.branch,
-        vehicule.model,
-        vehicule.year,
-        vehicule.number_plate,
-        vehicule.short_name,
-        vehicule.number_card,
-        vehicule.status,
-        vehicule.active,
-        vehicule.picture,
-    )
-    .fetch_one(pool)
-    .await
-    .context("Failed to execute query")?;
-
-    Ok(vehicule)
-}
-
-#[tracing::instrument(
-    name = "Patch vehicule",
+    name = "Patch vehiculo",
     skip_all
 )]
 pub async fn patch_vehicule(
     session: JwtSession,
     pool: web::Data<PgPool>,
     uuid: web::Path<Uuid>,
-    body: web::Json<UpdateVehicule>,
+    body: web::Json<ActualizaVehiculo>,
 ) -> Result<HttpResponse, actix_web::Error> {
     let user = get_user_by_id_sqlx(&pool, &session.user_id).await
         .map_err(|_| e500())?;
     let user = user.ok_or(e500())?;
     if !user.is_admin() {
-        return Err(e403().with_message("You dont have required privilege"))?;
+        return Err(e403().with_message("No tienes los permisos requeridos"))?;
     }
 
-    let vehicule = get_vehicule_sqlx(&pool, &uuid).await
+    let vehiculo = get_vehiculo_sqlx(&pool, &uuid).await
         .map_err(|_| e500())?;
-    let vehicule = vehicule.ok_or(e404().with_message("Vehicule not found"))?;
+    let mut vehiculo = vehiculo.ok_or(e404().with_message("No se encontro el Vehiculo"))?;
 
+    //let vehiculo = vehiculo.actualizar(body.into_inner());
+    vehiculo.actualizar(body.into_inner());
 
-    let update_body = body.into_inner();
-    let vehicule = vehicule.update(update_body);
-
-    let updated_vehicule = update_vehicule_sqlx(&pool, vehicule).await
+    let vehiculo_actualizado = update_vehiculo_sqlx(&pool, vehiculo).await
         .map_err(|_| e500())?;
 
-    let api_response = ApiResponse::<Vehicule>::new()
-        .with_message("Updated vehicule")
-        .with_data(updated_vehicule)
+    let api_response = ApiResponse::<Vehiculo>::new()
+        .with_message("Vehiculo Actualizado")
+        .with_data(vehiculo_actualizado)
         .to_resp();
 
     Ok(api_response)
 }
+
+#[tracing::instrument(
+    name = "Query Update vehiculo",
+    skip(pool)
+)]
+async fn update_vehiculo_sqlx(
+    pool: &PgPool,
+    vehiculo: Vehiculo,
+) -> Result<Vehiculo, anyhow::Error> {
+    let vehiculo_actualizado: Vehiculo = sqlx::query_as!(
+        Vehiculo,
+        r#"
+        UPDATE vehiculos
+        SET
+            marca = $2, modelo = $3, año = $4,
+            numero_placa = $5, nombre_economico = $6, numero_tarjeta = $7,
+            estado = $8, activo = $9, imagen = $10,
+            modificado_en = now()
+        WHERE vehiculo_id = $1
+        RETURNING 
+            vehiculo_id, marca, modelo, año,
+            numero_placa,
+            nombre_economico,
+            numero_tarjeta,
+            estado as "estado!: EstadoVehiculo",
+            activo,
+            imagen,
+            creado_en,
+            modificado_en
+        "#,
+        vehiculo.vehiculo_id,
+        vehiculo.marca,
+        vehiculo.modelo,
+        vehiculo.año,
+        vehiculo.numero_placa,
+        vehiculo.nombre_economico,
+        vehiculo.numero_tarjeta,
+        vehiculo.estado as EstadoVehiculo,
+        vehiculo.activo,
+        vehiculo.imagen,
+    )
+    .fetch_one(pool)
+    .await
+    .context("Fallo la ejecucion del query")?;
+
+    Ok(vehiculo_actualizado)
+}
+
 
 use actix_multipart::Multipart;
 use crate::upload::image::handle_picture_multipart;
@@ -104,207 +113,28 @@ pub async fn patch_vehicule_picture(
         .map_err(|_| e500())?;
     let user = user.ok_or(e500())?;
     if !user.is_admin() {
-        return Err(e403().with_message("You dont have required privilege"))?;
+        return Err(e403().with_message("No tienes los permisos requeridos"))?;
     }
 
-    let vehicule = get_vehicule_sqlx(&pool, &uuid).await
+    let vehiculo = get_vehiculo_sqlx(&pool, &uuid).await
         .map_err(|_| e500())?;
-    let mut vehicule = vehicule.ok_or(e404().with_message("Vehicule not found"))?;
+    let mut vehiculo = vehiculo.ok_or(e404().with_message("No se encontro el Vehiculo"))?;
 
     let base_path = "./uploads/";
-    let picture_path = format!("vehicules/{}-{}.jpeg", vehicule.vehicule_id, Uuid::new_v4().to_string());
+    let picture_path = format!("vehicules/{}-{}.jpeg", vehiculo.vehiculo_id, Uuid::new_v4().to_string());
     let save_path = format!("{base_path}{picture_path}");
-
-    /*
-    let update_vehicule = match handle_multipart(payload, req).await {
-        Ok(update_vehicule) => {update_vehicule},
-        Err(e) => {
-            if e == HandleMultipartError::InvalidBodyError {
-                return Err(e400().with_message("Invalid body"))?;
-            } else {
-                return Err(e500())?;
-            }
-        }
-    };
-    */
 
     handle_picture_multipart(payload, req, &save_path, None).await
         .map_err(|_| e500())?;
-    vehicule.picture = picture_path;
+    vehiculo.imagen = picture_path;
 
-    let updated_vehicule = update_vehicule_sqlx(&pool, vehicule).await
+    let vehiculo_actualizado = update_vehiculo_sqlx(&pool, vehiculo).await
         .map_err(|_| e500())?;
 
-    let api_response = ApiResponse::<Vehicule>::new()
-        .with_message("Updated vehicule")
-        .with_data(updated_vehicule)
+    let api_response = ApiResponse::<Vehiculo>::new()
+        .with_message("Vehiculo Actualizado")
+        .with_data(vehiculo_actualizado)
         .to_resp();
 
     Ok(api_response)
 }
-
-
-/*
-#[tracing::instrument(
-    name = "Handling multipart",
-    skip(payload)
-)]
-async fn handle_multipart(
-    mut payload: Multipart,
-    req: HttpRequest,
-) -> Result<UpdateVehicule, HandleMultipartError> {
-
-    let content_length: usize = match req.headers().get(CONTENT_LENGTH) {
-        Some(header_value) => header_value.to_str().unwrap_or("0").parse().unwrap(),
-        None => "0".parse().unwrap(),
-    } ;
-
-    let max_file_size: usize = 1024 * 1024; //10 Mb
-    let max_file_count: usize = 3;
-    let legal_filetypes: [Mime; 4] = [IMAGE_GIF, IMAGE_PNG, IMAGE_JPEG, APPLICATION_JSON ];
-    let mut current_count: usize = 0;
-    let dir: &str = "./uploads/vehicules/";
-    let mut picture_path = String::from("");
-    let mut update_body: Vec<u8> = vec![];
-
-    //dbg!(&content_length);
-    if content_length > max_file_size { return Err(HandleMultipartError::FileTooBigError) };
-
-
-    loop {
-        if current_count == max_file_count { break; }
-        if let Ok(Some(mut field)) = payload.try_next().await {
-            //dbg!(&field);
-            let filetype: Option<&Mime> = field.content_type();
-            //dbg!(&filetype);
-            if filetype.is_none() { continue; }
-            if !legal_filetypes.contains(&filetype.unwrap()) { continue; }
-            
-            match field.name() {
-                "body" => {
-                    while let Ok(Some(chunk)) = field.try_next().await {
-                        update_body.extend_from_slice(&chunk);
-                    }
-                },
-                "picture" => {
-                    let destination: String = format!(
-                        "{}{}-{}",
-                        dir,
-                        Uuid::new_v4(),
-                        field.content_disposition().get_filename().unwrap()
-                    );
-                    //dbg!(&destination);
-
-                    //let mut saved_file = tokio::fs::File::create(&destination).await.unwrap();
-                    let mut saved_file = match tokio::fs::File::create(&destination).await {
-                        Ok(f) => {f},
-                        Err(_) => {
-                            return Err(HandleMultipartError::CreateFileError);
-                        }
-                    };
-                    //dbg!(&saved_file);
-
-                    while let Ok(Some(chunk)) = field.try_next().await {
-                        //let _ = saved_file.write_all(&chunk).await.unwrap();
-                        match saved_file.write_all(&chunk).await {
-                            Ok(_) => {},
-                            Err(_) => {
-                                return Err(HandleMultipartError::SaveFileError);
-                            },
-                        }
-                    }
-
-                   picture_path = match 
-                       web::block(move || async move {
-                           write_image(&destination, &dir).await
-                       }).await {
-                        Ok(res) => {
-                            match res.await {
-                                Ok(path) => {path},
-                                Err(e) => {
-                                    return Err(e);
-                                },
-                            }
-                        },
-                        Err(_) => {
-                            return Err(HandleMultipartError::SaveImageError);
-                        },
-                    };
-                    dbg!(&picture_path);
-                },
-                _ => { continue; }
-            }
-        } else { break; }
-        current_count += 1;
-    }
-    dbg!(&current_count);
-    let mut update_vehicule: UpdateVehicule =
-    if !update_body.is_empty() {
-        //let update_vehicule = serde_json::from_slice(&update_body).unwrap();
-        match serde_json::from_slice(&update_body) {
-            Ok(json) => {json},
-            Err(_) => {
-                return Err(HandleMultipartError::InvalidBodyError);
-            },
-        }
-    } else {
-        return Err(HandleMultipartError::InvalidBodyError);
-    };
-
-    if picture_path != "".to_string() {
-        update_vehicule.picture = Some(picture_path);
-    }
-
-    Ok( update_vehicule )
-}
-
-async fn write_image(destination: &str, dir: &str) -> Result<String, HandleMultipartError> {
-    let uploaded_img: DynamicImage = match image::open(&destination) {
-        Ok(image) => image,
-        Err(_) => {
-            return Err(HandleMultipartError::OpenImageError);
-        },
-    };
-    match tokio::fs::remove_file(&destination).await {
-        Ok(_) => {},
-        Err(_) => {
-            return Err(HandleMultipartError::DeleteFileError);
-        },
-    }
-    let save_path = format!("{}{}.jpeg", dir, Uuid::new_v4().to_string());
-    match uploaded_img
-        .resize_exact(1024, 1024, FilterType::Nearest)
-        .save(&save_path) {
-            Ok(_) => {},
-            Err(_) => {
-                return Err(HandleMultipartError::SaveImageError);
-            }
-        }
-    Ok(save_path)
-}
-
-
-#[derive(thiserror::Error, PartialEq, Eq)]
-enum HandleMultipartError {
-    #[error("File too big for uploading")]
-    FileTooBigError,
-    #[error("Invalid Body")]
-    InvalidBodyError,
-    #[error("Cannot Create File")]
-    CreateFileError,
-    #[error("Cannot Delete File")]
-    DeleteFileError,
-    #[error("Cannot Save File")]
-    SaveFileError,
-    #[error("Cannot Open Temporal Image")]
-    OpenImageError,
-    #[error("Cannot Save Permanent Image")]
-    SaveImageError,
-}
-
-impl std::fmt::Debug for HandleMultipartError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        error_chain_fmt(self, f)
-    }
-}
-*/
