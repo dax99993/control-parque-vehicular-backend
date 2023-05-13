@@ -48,30 +48,32 @@ pub struct Parameters {
 }
 
 #[tracing::instrument(
-    name = "Confirm an unverified user",
+    name = "Confirmar usuario sin verificar",
     skip(parameters, pool)
 )]
 pub async fn confirm(
     parameters: web::Query<Parameters>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    if let Some(user_id) = 
-        get_user_id_from_token(&pool, &parameters.signup_token).await
+
+    if let Some(usuario_id) = 
+        obtener_usuario_id_del_token_sqlx(&pool, &parameters.signup_token).await
             .map_err(|e| VerifyError::UnexpectedError(e.into()))?
     {
-        // Dont confirm user if it was already confirmed
-        let verified = get_verified_field(&pool, user_id).await
+        // No verificar usuario si ya esta verificado
+        let verificado = obtener_campo_verificado_sqlx(&pool, usuario_id).await
             .map_err(|e| VerifyError::UnexpectedError(e.into()))?;
-        if verified {
+
+        if verificado {
             return Err(VerifyError::AlreadyVerifiedUserError("".into()))?;
         }
 
-        confirm_user(&pool, user_id).await
+        verificar_usuario_sqlx(&pool, usuario_id).await
             .map_err(|e| VerifyError::UnexpectedError(e.into()))?;
 
-            return Ok(HttpResponse::Ok().json(
-                serde_json::json!({"status": "sucess", "message": "User verified"})
-                ));
+        return Ok(HttpResponse::Ok().json(
+            serde_json::json!({"status": "exito", "message": "Usuario verificado"})
+            ));
             
     } else {
         return Err(VerifyError::InvalidTokenError("".into()))?;
@@ -85,12 +87,12 @@ pub async fn confirm(
     name = "Get subscriber_id from token",
     skip(signup_token, pool)
 )]
-pub async fn get_user_id_from_token(
+pub async fn obtener_usuario_id_del_token_sqlx(
     pool: &PgPool,
     signup_token: &str,
 ) -> Result<Option<Uuid>, sqlx::Error> {
     let result = sqlx::query!(
-        r#"SELECT user_id FROM  signup_tokens WHERE signup_token = $1"#,
+        r#"SELECT usuario_id FROM  signup_tokens WHERE signup_token = $1"#,
         signup_token 
     )
         .fetch_optional(pool)
@@ -99,23 +101,24 @@ pub async fn get_user_id_from_token(
             tracing::error!("Failed to execute query: {:?}", e);
             e
         })?;
-    Ok(result.map(|r| r.user_id))
+
+    Ok(result.map(|r| r.usuario_id))
 }
 
 #[tracing::instrument(
-    name = "Mark user as verified",
-    skip(user_id, pool)
+    name = "Verificar usuario",
+    skip(usuario_id, pool)
 )]
-pub async fn confirm_user(
+pub async fn verificar_usuario_sqlx(
     pool: &PgPool,
-    user_id: Uuid,
+    usuario_id: Uuid,
 ) -> Result<(), sqlx::Error> {
     sqlx::query!(
-        r#"UPDATE users
-        SET verified = true,
-            updated_at = now()
-        WHERE user_id = $1"#,
-        user_id 
+        r#"UPDATE usuarios
+        SET verificado = true,
+            modificado_en = now()
+        WHERE usuario_id = $1"#,
+        usuario_id 
     )
         .execute(pool)
         .await
@@ -123,22 +126,23 @@ pub async fn confirm_user(
             tracing::error!("Failed to execute query: {:?}", e);
             e
         })?;
+
     Ok(())
 }
 
 #[tracing::instrument(
-    name = "Get user verified field",
-    skip(user_id, pool)
+    name = "Obtener campo verificado del usuario",
+    skip(usuario_id, pool)
 )]
-pub async fn get_verified_field(
+pub async fn obtener_campo_verificado_sqlx(
     pool: &PgPool,
-    user_id: Uuid,
+    usuario_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
     let row = sqlx::query!(
-        r#"SELECT verified
-        FROM users
-        WHERE user_id = $1"#,
-        user_id 
+        r#"SELECT verificado
+        FROM usuarios
+        WHERE usuario_id = $1"#,
+        usuario_id
     )
     .fetch_one(pool)
     .await
@@ -146,5 +150,5 @@ pub async fn get_verified_field(
         tracing::error!("Failed to execute query: {:?}", e);
         e
     })?;
-    Ok(row.verified)
+    Ok(row.verificado)
 }

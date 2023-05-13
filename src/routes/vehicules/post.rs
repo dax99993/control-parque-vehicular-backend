@@ -6,19 +6,18 @@ use uuid::Uuid;
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e403};
 
-use crate::routes::users::utils::get_user_by_id_sqlx;
+use crate::routes::users::sqlx::obtener_usuario_por_id_sqlx;
 
 use common::models::vehicule::{NuevoVehiculo, Vehiculo, EstadoVehiculo};
 
-//TODO update fn to insert picture
-//and handle picture upload in http request
+
 #[tracing::instrument(
-    name = "Insert new vehicules query",
+    name = "Query insertar nuevo vehiculo",
     skip(pool)
 )]
-async fn insert_nuevo_vehiculo_sqlx(
+async fn insertar_nuevo_vehiculo_sqlx(
     pool: &PgPool,
-    vehicule: NuevoVehiculo,
+    vehiculo: NuevoVehiculo,
 ) -> Result<Vehiculo, anyhow::Error> {
     let vehiculo: Vehiculo = sqlx::query_as!(
         Vehiculo,
@@ -38,12 +37,12 @@ async fn insert_nuevo_vehiculo_sqlx(
             modificado_en
         "#,
         Uuid::new_v4(),
-        vehicule.marca,
-        vehicule.modelo,
-        vehicule.año,
-        vehicule.numero_placa,
-        vehicule.nombre_economico,
-        vehicule.numero_tarjeta,
+        vehiculo.marca,
+        vehiculo.modelo,
+        vehiculo.año,
+        vehiculo.numero_placa,
+        vehiculo.nombre_economico,
+        vehiculo.numero_tarjeta,
     )
     .fetch_one(pool)
     .await
@@ -61,16 +60,22 @@ pub async fn post_new_vehicule(
     pool: web::Data<PgPool>,
     vehiculo: web::Json<NuevoVehiculo>
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
-        .map_err(|_| e500())?;
-    let user = user.ok_or(e500())?;
-    if !user.is_admin() {
+
+    // Usuario es admin ?
+    let usuario = obtener_usuario_por_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?
+        .ok_or(e500())?;
+
+    if !usuario.es_admin() {
         return Err(e403().with_message("No tienes los permisos requeridos"))?;
     }
 
-    let nuevo_vehiculo = insert_nuevo_vehiculo_sqlx(&pool, vehiculo.into_inner()).await
+    // Query insertar nuevo vehiculo DB
+    let vehiculo = vehiculo.into_inner();
+    let nuevo_vehiculo = insertar_nuevo_vehiculo_sqlx(&pool, vehiculo).await
         .map_err(|_| e500())?;
 
+    // Respuesta exitosa
     let api_response = ApiResponse::<Vehiculo>::new()
         .with_message("Nuevo vehiculo")
         .with_data(nuevo_vehiculo)

@@ -2,39 +2,38 @@ use actix_web::{HttpResponse, web};
 use sqlx::PgPool;
 use anyhow::Context;
 
-use crate::authentication::jwt_session::JwtSession;
-use crate::models::department::Department;
-use crate::api_response::{e500, ApiResponse, e403, e404};
+use common::models::department::{Departamento, ActualizaDepartamento};
 
-use crate::routes::users::utils::get_user_by_id_sqlx;
-use super::get::get_department_with_id_sqlx;
+use crate::authentication::jwt_session::JwtSession;
+use crate::api_response::{e500, ApiResponse, e403, e404};
+use crate::routes::users::sqlx::obtener_usuario_por_id_sqlx;
+use super::get::obtener_departamento_por_id_sqlx;
 
 
 #[tracing::instrument(
-    name = "Update department query",
+    name = "Query actualizar departamento",
     skip_all
 )]
-async fn update_department_with_name_sqlx(
+async fn actualizar_departamento_sqlx(
     pool: &PgPool,
-    id: i32,
-    name: String,
-) -> Result<Department, anyhow::Error> {
-    let department: Department = sqlx::query_as!(
-        Department,
+    departamento: Departamento,
+) -> Result<Departamento, anyhow::Error> {
+    let departamento: Departamento = sqlx::query_as!(
+        Departamento,
         r#"
-        UPDATE departments
-        SET name = $2
+        UPDATE departamentos
+        SET nombre = $2
         WHERE id = $1
         RETURNING *
         "#,
-        id,
-        name)
+        departamento.id,
+        departamento.nombre)
         .fetch_one(pool)
         .await
         .context("Failed to execute query")?;
 
 
-    Ok(department)
+    Ok(departamento)
 }
 
 
@@ -46,36 +45,40 @@ pub async fn patch_department(
     session: JwtSession,
     pool: web::Data<PgPool>,
     id: web::Path<i32>,
-    body: web::Json<DepartmentName>,
+    body: web::Json<ActualizaDepartamento>,
 ) -> Result<HttpResponse, actix_web::Error> {
+
+    // Usuario es admin ?
+    let usuario = obtener_usuario_por_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?
+        .ok_or(e500())?;
+    
+    if !usuario.es_admin() {
+        return Err(e403().with_message("No tienes los permisos requeridos"))?;
+    }
+    
+
+    // Departamento es valido ?
     let id = id.into_inner();
+    let mut departamento = obtener_departamento_por_id_sqlx(&pool, id).await
+        .map_err(|_| e500())?
+        .ok_or(e404().with_message("No se encontro el departamento"))?;
 
-    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
-        .map_err(|_| e500())?;
-    if user.is_none() {
-       return Err(e500())?; 
-    }
+
+    //Actualizar departamento
+    departamento.nombre = body.into_inner().nombre;
+
     
-    if !user.unwrap().is_admin() {
-        return Err(e403().with_message("You dont have required privilege"))?;
-    }
-    
-    let department = get_department_with_id_sqlx(&pool, id).await
-        .map_err(|_| e500())?;
-    department.ok_or(e404().with_message("Department not found"))?;
-
-    let updated_department = update_department_with_name_sqlx(&pool, id, body.into_inner().name).await
+    // Query actualizar departamento DB
+    let departmento_actualizado = actualizar_departamento_sqlx(&pool, departamento).await
         .map_err(|_| e500())?;
 
-    let api_response = ApiResponse::<Department>::new()
-        .with_message("Department updated")
-        .with_data(updated_department)
+
+    // Respuesta exitosa
+    let api_response = ApiResponse::<Departamento>::new()
+        .with_message("Departamento actualizado")
+        .with_data(departmento_actualizado)
         .to_resp();
 
     Ok(api_response)
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct DepartmentName {
-    pub name: String
 }

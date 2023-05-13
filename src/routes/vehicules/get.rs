@@ -9,7 +9,7 @@ use crate::api_response::{ApiResponse, e500, e404};
 
 use common::models::vehicule::{Vehiculo, EstadoVehiculo, VehiculoFiltrado};
 
-use crate::routes::users::utils::get_user_by_id_sqlx;
+use crate::routes::users::sqlx::obtener_usuario_por_id_sqlx;
 
 
 
@@ -22,16 +22,27 @@ pub async fn get_vehicule(
     pool: web::Data<PgPool>,
     uuid: web::Path<Uuid>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    // Get user making the request
-    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
-        .map_err(|_| e500())?;
-    let user = user.ok_or(e500())?;
 
-    let vehiculo = get_vehiculo_sqlx(&pool, &uuid).await
-        .map_err(|_| e500())?;
-    let vehiculo = vehiculo.ok_or(e404().with_message("No se encontro el Vehiculo"))?;
+    // Usuario es admin ?
+    let usuario = obtener_usuario_por_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?
+        .ok_or(e500())?;
 
-    if user.is_admin() {
+    /*
+    if !usuario.es_admin() {
+        return Err(e403().with_message("No tienes los permisos requeridos"))?;
+    }
+    */
+
+    // Vehiculo valido ?
+    let vehiculo = obtener_vehiculo_por_id_sqlx(&pool, &uuid).await
+        .map_err(|_| e500())?
+        .ok_or(e404().with_message("No se encontro el Vehiculo"))?;
+
+
+    // Respuesta exitosa
+
+    if usuario.es_admin() {
         let api_response = ApiResponse::<Vehiculo>::new()
             .with_message("Vehiculo")
             .with_data(vehiculo)
@@ -56,10 +67,10 @@ pub async fn get_vehicule(
 }
 
 #[tracing::instrument(
-    name = "Query vehiculo",
+    name = "Query vehiculo por id",
     skip(pool)
 )]
-pub async fn get_vehiculo_sqlx(
+pub async fn obtener_vehiculo_por_id_sqlx(
     pool: &PgPool,
     uuid: &Uuid,
 ) -> Result<Option<Vehiculo>, anyhow::Error> {
@@ -99,15 +110,26 @@ pub async fn get_all_vehicules(
     pool: web::Data<PgPool>,
     query: web::Query<FilterQueryVehicule>
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
-        .map_err(|_| e500())?;
-    let user = user.ok_or(e500())?;
 
+    // Usuario es admin ?
+    let usuario = obtener_usuario_por_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?
+        .ok_or(e500())?;
+
+    /*
+    if !usuario.es_admin() {
+        return Err(e403().with_message("No tienes los permisos requeridos"))?;
+    }
+    */
+
+    // Validar query
     let query = query.into_inner();
-    let vehiculos = get_vehiculos_con_filtro_sqlx(&pool, query).await
+
+    // Query vehiculo DB
+    let vehiculos = obtener_vehiculos_con_filtro_sqlx(&pool, query).await
         .map_err(|_| e500())?;
 
-    if user.is_admin() {
+    if usuario.es_admin() {
         let api_response = ApiResponse::<Vec<Vehiculo>>::new()
             .with_message("Lista de vehiculos")
             .with_data(vehiculos)
@@ -136,7 +158,7 @@ pub async fn get_all_vehicules(
     name = "Query vehiculos con filtro",
     skip(pool)
 )]
-pub async fn get_vehiculos_con_filtro_sqlx(
+pub async fn obtener_vehiculos_con_filtro_sqlx(
     pool: &PgPool,
     //query: &VehiculesQuery,
     filtro: FilterQueryVehicule,

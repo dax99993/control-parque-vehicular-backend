@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS peticiones
 (
     peticion_id UUID NOT NULL PRIMARY KEY,
-    usuario_id uuid NULL REFERENCES users(user_id) ON DELETE SET NULL,
+    usuario_id uuid NULL REFERENCES usuarios(usuario_id) ON DELETE SET NULL,
     vehiculo_id uuid NULL REFERENCES vehiculos(vehiculo_id) ON DELETE SET NULL,
     estado TEXT NOT NULL DEFAULT 'pending' CHECK( estado IN ('approved', 'denied', 'pending', 'finished') ),
     actividad_descripcion TEXT NOT NULL DEFAULT '',

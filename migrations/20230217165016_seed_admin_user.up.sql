@@ -1,5 +1,5 @@
 -- Add up migration script here
-INSERT INTO users (user_id, first_name, last_name, email, password_hash, verified, role)
+INSERT INTO usuarios (usuario_id, nombres, apellidos, email, password_hash, verificado, rol)
 VALUES (
     'af162cde-9de7-4eae-a446-9e2a62608e2c',
     'admin',

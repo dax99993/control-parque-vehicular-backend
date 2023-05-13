@@ -54,6 +54,27 @@ pub async fn validate_credentials(
     )
 }
 
+#[tracing::instrument(name = "Get stored credentials", skip(email, pool))]
+async fn get_stored_credentials(
+    email: &str,
+    pool: &PgPool,
+) -> Result<Option<(uuid::Uuid, Secret<String>)>, anyhow::Error> {
+    let row: Option<_> = sqlx::query!(
+        r#"
+        SELECT usuario_id, password_hash
+        FROM usuarios
+        WHERE email = $1
+        "#,
+        email,
+    )
+    .fetch_optional(pool)
+    .await
+    .context("Failed to performed a query to retrieve stored credentials")?
+    .map(|row| (row.usuario_id, Secret::new(row.password_hash)));
+    
+    Ok(row)
+}
+
 #[tracing::instrument(
     name = "Verify password hash",
     skip(expected_password_hash, password_candidate)
@@ -79,26 +100,6 @@ fn verify_password_hash(
 
 
 
-#[tracing::instrument(name = "Get stored credentials", skip(email, pool))]
-async fn get_stored_credentials(
-    email: &str,
-    pool: &PgPool,
-) -> Result<Option<(uuid::Uuid, Secret<String>)>, anyhow::Error> {
-    let row: Option<_> = sqlx::query!(
-        r#"
-        SELECT user_id, password_hash
-        FROM users
-        WHERE email = $1
-        "#,
-        email,
-    )
-    .fetch_optional(pool)
-    .await
-    .context("Failed to performed a query to retrieve stored credentials")?
-    .map(|row| (row.user_id, Secret::new(row.password_hash)));
-    
-    Ok(row)
-}
 
 
 #[tracing::instrument(name = "Change password", skip(password, pool))]
@@ -114,9 +115,9 @@ pub async fn change_password(
         .context("Failed to hash password")?;
     sqlx::query!(
         r#"
-        UPDATE users
+        UPDATE usuarios
         SET password_hash = $1
-        WHERE user_id = $2
+        WHERE usuario_id = $2
         "#,
         password_hash.expose_secret(),
         user_id,

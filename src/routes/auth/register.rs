@@ -1,5 +1,6 @@
 use crate::api_response::{e401, e500, ApiResponse, e409};
-use crate::models::user::SignupUser;
+//use crate::models::user::SignupUser;
+use common::models::user::SignupUsuario;
 use crate::email_client::EmailClient;
 use crate::authentication::password::compute_password_hash;
 use crate::telemetry::spawn_blocking_with_tracing;
@@ -14,22 +15,24 @@ use validator::Validate;
 
 
 #[tracing::instrument(
-    name = "Signup user",
+    name = "Signup usuario",
     skip_all,
     fields(user_id=tracing::field::Empty)
 )]
 pub async fn signup_user(
     pool: web::Data<PgPool>,
-    body: web::Json<SignupUser>,
+    body: web::Json<SignupUsuario>,
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, actix_web::Error> {
 
-    /* Validate body signup */
-    let signup_user = body.into_inner();
-    signup_user.validate().map_err(|_| e401().with_message("Invalid body"))?;
+    /* Validar signup body*/
+    let signup_usuario = body.into_inner();
+    // Extraer los Error irregresarlos en un mensaje del api
+    signup_usuario.validate().map_err(|_| e401().with_message("Invalid body"))?;
 
-    /* check passwords match */
+    /* checar passwords match */
+    /*
     if signup_user.password.expose_secret() !=
        signup_user.re_password.expose_secret() {
         return Err(e401().with_message("Passwords dont match"))?;
@@ -39,31 +42,33 @@ pub async fn signup_user(
        signup_user.password.expose_secret().len() > 255 {
         return Err(e401().with_message("Password should be between 6 and 255 characters"))?;
     }
+    */
 
     let mut transaction = pool.begin()
         .await
         .map_err(|_| e500())?;
 
-    /* verify if user with given email exists, in case it does conflict */
-    let user_exists = exists_user_with_email(&mut transaction, &signup_user.email)
+    /* verificar si usuario con email este email existe, en caso que si retornar error */
+    let usuario_existe = existe_usuario_con_email(&mut transaction, &signup_usuario.email)
         .await
         .map_err(|_| e500())?;
 
-    if user_exists {
-        return Err(e409().with_message("User already exits"))?
+    if usuario_existe {
+        return Err(e409().with_message("Ya existe usuario con ese correo electronico"))?
     }
 
     // insert new user in database
-    let user_email = signup_user.email.clone();
-    let user_id = insert_user(&mut transaction, signup_user)
+    let usuario_email = signup_usuario.email.clone();
+    let usuario_id = insertar_usuario_sqlx(&mut transaction, signup_usuario)
         .await
         .map_err(|_| e500())?;
+
     tracing::Span::current()
-        .record("user_id", &tracing::field::display(&user_id));
+        .record("usuario_id", &tracing::field::display(&usuario_id));
 
     // generate signup token
     let signup_token = generate_signup_token();
-    store_token(&mut transaction, user_id, &signup_token)
+    store_token(&mut transaction, usuario_id, &signup_token)
         .await
         .map_err(|_| e500())?;
     transaction.commit()
@@ -71,7 +76,7 @@ pub async fn signup_user(
         .map_err(|_| e500())?;
 
     //send email to verify user
-    send_confirmation_email(&email_client, &base_url.0, &user_email, &signup_token)
+    send_confirmation_email(&email_client, &base_url.0, &usuario_email, &signup_token)
         .await
         .map_err(|_| e500())?;
 
@@ -79,24 +84,24 @@ pub async fn signup_user(
     Ok(
         ApiResponse::<()>::new()
             .with_status_code(201)
-            .with_message("User created")
+            .with_message("Usuario creado")
             .to_resp()
      )
 }
 
 
 #[tracing::instrument(
-    name = "Querying user existence",
+    name = "Querying existencia de usuario",
     skip(email, transaction)
 )]
-async fn exists_user_with_email(
+async fn existe_usuario_con_email(
     transaction: &mut Transaction<'_, Postgres>,
     email: &str
 ) -> Result<bool, sqlx::Error> {
     let row = sqlx::query!(
         r#"
         SELECT EXISTS(
-            SELECT user_id FROM users
+            SELECT usuario_id FROM usuarios
             WHERE email = $1
         )
         "#,
@@ -105,21 +110,21 @@ async fn exists_user_with_email(
         .fetch_one(transaction)
         .await?;
 
-    let user_exists = row.exists.unwrap();
-
-    Ok(user_exists)
+    Ok(row.exists.unwrap())
 }
 
 #[tracing::instrument(
     name = "insert new user",
-    skip(user, transaction)
+    skip(usuario, transaction)
 )]
-async fn insert_user(
+async fn insertar_usuario_sqlx(
     transaction: &mut Transaction<'_, Postgres>,
-    user: SignupUser,
+    usuario: SignupUsuario,
 ) -> Result<uuid::Uuid, anyhow::Error> {
+
     let password_hash = spawn_blocking_with_tracing(
-            move || compute_password_hash(user.password)
+            //move || compute_password_hash(Secret::new(usuario.password))
+            move || compute_password_hash(usuario.password.into())
         )
         .await?
         .context("Failed to hash password")?;
@@ -127,15 +132,15 @@ async fn insert_user(
     let uuid = Uuid::new_v4();
     let row = sqlx::query!(
         r#"
-        INSERT INTO users
-        (user_id, first_name, last_name, email, password_hash)
+        INSERT INTO usuarios
+        (usuario_id, nombres, apellidos, email, password_hash)
         VALUES ($1, $2, $3, $4, $5)
-        RETURNING user_id
+        RETURNING usuario_id
         "#,
         uuid,
-        user.first_name,
-        user.last_name,
-        user.email,
+        usuario.nombres,
+        usuario.apellidos,
+        usuario.email,
         password_hash.expose_secret(),
     )
     .fetch_one(transaction)
@@ -143,7 +148,7 @@ async fn insert_user(
     .context("Failed to performed a query to retrieve stored new user")?;
     //.map(|row| row.user_id);
     
-    Ok(row.user_id)
+    Ok(row.usuario_id)
 }
 
 fn generate_signup_token() -> String {
@@ -166,7 +171,7 @@ async fn store_token (
     sqlx::query!(
         r#"
         INSERT INTO signup_tokens
-        (signup_token, user_id)
+        (signup_token, usuario_id)
         VALUES ($1, $2)
         "#,
         signup_token,

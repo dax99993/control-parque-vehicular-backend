@@ -1,37 +1,47 @@
 use actix_web::{HttpResponse, web, HttpRequest};
 use sqlx::PgPool;
 
+use common::models::user::{Usuario, ActualizaMiUsuario};
+
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500};
-use crate::models::user::{FilteredUser, UpdateUserMe};
 
-use crate::routes::users::utils::{get_user_by_id_sqlx, update_user_sqlx, update_user_picture_sqlx};
+use crate::routes::users::sqlx::{obtener_usuario_por_id_sqlx, actualizar_usuario_sqlx, actualizar_imagen_usuario_sqlx};
 
 
 #[tracing::instrument(
-    name = "Patch me user",
+    name = "Actualizar mi usuario",
     skip_all
 )]
 pub async fn user_patch_me(
     session: JwtSession,
     pool: web::Data<PgPool>,
-    body: web::Json<UpdateUserMe>,
+    body: web::Json<ActualizaMiUsuario>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
-        .map_err(|_| e500())?;
-    let user = user.ok_or(e500())?;
+
+    // Sesion actual tiene un usuario valido ?
+    let mut usuario = obtener_usuario_por_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?
+        .ok_or(e500())?;
     
-    // may add possibility of updating email
+    // Validar actualizacion
     let update_body = body.into_inner();
-    let user = user.update_me(update_body);
-    let updated_user = update_user_sqlx(&pool, user).await
+    //update_body.validate();
+
+    // Actualizar usuario
+    usuario.actualizar_me(update_body);
+
+    // Query actualizar DB
+    let usuario_actualizado = actualizar_usuario_sqlx(&pool, usuario).await
         .map_err(|_| e500())?;
 
-    let filter_user = FilteredUser::from(updated_user);
-    let api_response = ApiResponse::<FilteredUser>::new()
-        .with_message("Updated user info")
-        .with_data(filter_user)
+
+    // Respuesta exitosa
+    let api_response = ApiResponse::<Usuario>::new()
+        .with_message("Usuario actualizado")
+        .with_data(usuario_actualizado)
         .to_resp();
+
     Ok(api_response)
 }
 
@@ -48,23 +58,29 @@ pub async fn user_picture_patch_me(
     payload: Multipart,
     req: HttpRequest, 
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
-        .map_err(|_| e500())?;
-    let mut user = user.ok_or(e500())?;
 
-    let picture_path = format!("./uploads/users/{}.jpeg", user.user_id);
-    
-    // Need to add a better error handling for this function
+    // Sesion actual tiene un usuario valido ?
+    let mut usuario = obtener_usuario_por_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?
+        .ok_or(e500())?;
+
+    // Guardar Imagen
+    let picture_path = format!("./uploads/users/{}.jpeg", usuario.usuario_id);
+
     handle_picture_multipart(payload, req, &picture_path, Some((1024,1024))).await
         .map_err(|_| e500())?;
-    user.picture = picture_path;
-    let updated_user = update_user_picture_sqlx(&pool, user).await
+
+    // Actualizar Usuario
+    usuario.imagen= picture_path;
+
+    // Query Actulizar Imagen DB
+    let usuario_actualizado = actualizar_imagen_usuario_sqlx(&pool, usuario).await
         .map_err(|_| e500())?;
 
-    let filter_user = FilteredUser::from(updated_user);
-    let api_response = ApiResponse::<FilteredUser>::new()
-        .with_message("Updated User info")
-        .with_data(filter_user)
+    // Respueta exitosa
+    let api_response = ApiResponse::<Usuario>::new()
+        .with_message("Usuario actualizado")
+        .with_data(usuario_actualizado)
         .to_resp();
     Ok(api_response)
 }

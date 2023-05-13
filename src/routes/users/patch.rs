@@ -3,51 +3,58 @@ use actix_web::{HttpResponse, web, HttpRequest};
 use sqlx::PgPool;
 use uuid::Uuid;
 
+use common::models::user::{Usuario, ActualizaUsuario};
+
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e403, e404};
-use crate::models::user::{User, UpdateUser};
 //use crate::telemetry::spawn_blocking_with_tracing;
 
-use super::utils::{get_user_by_id_sqlx, update_user_sqlx, update_user_picture_sqlx};
+use super::sqlx::{obtener_usuario_por_id_sqlx, actualizar_usuario_sqlx, actualizar_imagen_usuario_sqlx};
 
 
 #[tracing::instrument(
-    name = "Patch User by id",
+    name = "Actualizar Usuario por id",
     skip(session, pool)
 )]
 pub async fn user_patch(
     session: JwtSession,
     pool: web::Data<PgPool>,
     uuid: web::Path<Uuid>,
-    update_body: web::Json<UpdateUser>
+    body: web::Json<ActualizaUsuario>
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
-        .map_err(|_| e500())?;
-    let user = user.ok_or(e500())?;
-    if !user.is_admin() {
-        return Err(e403().with_message("You dont have required privilege"))?;
+
+    // Usuario es admin ?
+    let usuario = obtener_usuario_por_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?
+        .ok_or(e500())?;
+
+    if !usuario.es_admin() {
+        return Err(e403().with_message("No tienes los permisos requeridos"))?;
     }
 
-    let other_user = get_user_by_id_sqlx(&pool, &uuid).await
-        .map_err(|_| e500())?;
-    let other_user = other_user.ok_or(e404().with_message("User not found"))?;
-    if other_user.is_admin() && user.user_id != other_user.user_id {
-       return Err(e403().with_message("Cannot patch other admin users"))?; 
+    // Otro Usuario valido?
+    let mut otro_usuario = obtener_usuario_por_id_sqlx(&pool, &uuid).await
+        .map_err(|_| e500())?
+        .ok_or(e404().with_message("No se encontro el usuario"))?;
+
+    if otro_usuario.es_admin() && usuario.usuario_id != otro_usuario.usuario_id {
+       return Err(e403().with_message("No puedes modificar otros administrador"))?; 
     }
 
-    // Get the patch update_body data
-    // parse it into UpdateUser struct
-    let update_body = update_body.into_inner();
-    // Need to validate update_body since it can contain a email ****
-    // update other_user
-    let updated_user = other_user.update(update_body);
-    // query to database
-    let updated_user = update_user_sqlx(&pool, updated_user).await
+    // Actualizar Usuario 
+    let update_body = body.into_inner();
+    // Deberia validar actualizacion
+    // update_body.validate();
+    otro_usuario.actualizar(update_body);
+
+    // Query Actualizar DB
+    let usuario_actualizado = actualizar_usuario_sqlx(&pool, otro_usuario).await
         .map_err(|_| e500())?;
-    // return updated user
-    let api_response = ApiResponse::<User>::new()
-        .with_message("Updated user")
-        .with_data(updated_user)
+
+    // Respuesta exitosa
+    let api_response = ApiResponse::<Usuario>::new()
+        .with_message("Usuario Actualizado")
+        .with_data(usuario_actualizado)
         .to_resp();
     
     Ok(api_response)
@@ -58,7 +65,7 @@ use actix_multipart::Multipart;
 use crate::upload::image::handle_picture_multipart;
 
 #[tracing::instrument(
-    name = "Patch user picture by id",
+    name = "Actualizar imagen de Usuario por id",
     skip(session, pool, payload, req)
 )]
 pub async fn user_picture_patch(
@@ -68,33 +75,42 @@ pub async fn user_picture_patch(
     payload: Multipart,
     req: HttpRequest, 
 ) -> Result<HttpResponse, actix_web::Error> {
-    let user = get_user_by_id_sqlx(&pool, &session.user_id).await
-        .map_err(|_| e500())?;
-    let user = user.ok_or(e500())?;
-    if !user.is_admin() {
-        return Err(e403().with_message("You dont have required privilege"))?;
+
+    // Usuario es admin ?
+    let usuario = obtener_usuario_por_id_sqlx(&pool, &session.user_id).await
+        .map_err(|_| e500())?
+        .ok_or(e500())?;
+
+    if !usuario.es_admin() {
+        return Err(e403().with_message("No tienes los privilegios necesarios"))?;
     }
 
-    let other_user = get_user_by_id_sqlx(&pool, &uuid).await
-        .map_err(|_| e500())?;
-    let mut other_user = other_user.ok_or(e404().with_message("User not found"))?;
-    if other_user.is_admin() && user.user_id != other_user.user_id {
-       return Err(e403().with_message("Cannot patch other admin users"))?; 
+    // Otro Usuario valido?
+    let mut otro_usuario = obtener_usuario_por_id_sqlx(&pool, &uuid).await
+        .map_err(|_| e500())?
+        .ok_or(e404().with_message("No se encontro Usuario"))?;
+
+    if otro_usuario.es_admin() && usuario.usuario_id != otro_usuario.usuario_id {
+       return Err(e403().with_message("No puedes modificar otro administrador"))?; 
     }
 
-    let picture_path = format!("./uploads/users/{}.jpeg", other_user.user_id);
+    let picture_path = format!("./uploads/users/{}.jpeg", otro_usuario.usuario_id);
     
-    // Need to add a better error handling for this function
-    // and add resize externally
+    // Guardar imagen
     handle_picture_multipart(payload, req, &picture_path, Some((1024,1024))).await
         .map_err(|_| e500())?;
-    other_user.picture = picture_path;
-    let updated_user = update_user_picture_sqlx(&pool, other_user).await
+
+    // Actualizar Usuario 
+    otro_usuario.imagen = picture_path;
+
+    let usuario_actualizado = actualizar_imagen_usuario_sqlx(&pool, otro_usuario).await
         .map_err(|_| e500())?;
 
-    let api_response = ApiResponse::<User>::new()
-        .with_message("Updated User")
-        .with_data(updated_user)
+    // Respuesta exitosa
+    let api_response = ApiResponse::<Usuario>::new()
+        .with_message("Usuario Actualizado")
+        .with_data(usuario_actualizado)
         .to_resp();
+
     Ok(api_response)
 }
