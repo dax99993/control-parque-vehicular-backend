@@ -41,6 +41,7 @@ pub async fn users_get_all(
     Ok(api_response)
 }
 
+
 #[tracing::instrument(
     name = "Obtener usuario",
     skip(session, pool)

@@ -4,3 +4,4 @@ pub mod patch;
 pub mod delete;
 
 pub mod sqlx;
+pub mod image;

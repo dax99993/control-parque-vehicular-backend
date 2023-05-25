@@ -8,6 +8,7 @@ use common::models::user::{Usuario, ActualizaUsuario};
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500, e403, e404};
 //use crate::telemetry::spawn_blocking_with_tracing;
+use crate::upload::image::get_uploads_path;
 
 use super::sqlx::{obtener_usuario_por_id_sqlx, actualizar_usuario_sqlx, actualizar_imagen_usuario_sqlx};
 
@@ -94,14 +95,22 @@ pub async fn user_picture_patch(
        return Err(e403().with_message("No puedes modificar otro administrador"))?; 
     }
 
-    let picture_path = format!("./uploads/users/{}.jpeg", otro_usuario.usuario_id);
     
     // Guardar imagen
-    handle_picture_multipart(payload, req, &picture_path, Some((1024,1024))).await
+    let base_path = get_uploads_path()
+        .map_err(|_| e500())?
+        .join("users");
+
+    let picture_filename = format!("{}-{}.jpeg", otro_usuario.usuario_id, Uuid::new_v4().to_string());
+
+    let save_path = base_path.join(&picture_filename);
+
+    handle_picture_multipart(payload, req, &save_path.to_string_lossy(), Some((1024,1024))).await
         .map_err(|_| e500())?;
 
+
     // Actualizar Usuario 
-    otro_usuario.imagen = picture_path;
+    otro_usuario.imagen = picture_filename;
 
     let usuario_actualizado = actualizar_imagen_usuario_sqlx(&pool, otro_usuario).await
         .map_err(|_| e500())?;

@@ -1,10 +1,12 @@
 use actix_web::{HttpResponse, web, HttpRequest};
+use uuid::Uuid;
 use sqlx::PgPool;
 
 use common::models::user::{Usuario, ActualizaMiUsuario};
 
 use crate::authentication::jwt_session::JwtSession;
 use crate::api_response::{ApiResponse, e500};
+use crate::upload::image::get_uploads_path;
 
 use crate::routes::users::sqlx::{obtener_usuario_por_id_sqlx, actualizar_usuario_sqlx, actualizar_imagen_usuario_sqlx};
 
@@ -65,13 +67,20 @@ pub async fn user_picture_patch_me(
         .ok_or(e500())?;
 
     // Guardar Imagen
-    let picture_path = format!("./uploads/users/{}.jpeg", usuario.usuario_id);
+    let base_path = get_uploads_path()
+        .map_err(|_| e500())?
+        .join("users");
 
-    handle_picture_multipart(payload, req, &picture_path, Some((1024,1024))).await
+    let picture_filename = format!("{}-{}.jpeg", usuario.usuario_id, Uuid::new_v4().to_string());
+
+    let save_path = base_path.join(&picture_filename);
+
+    handle_picture_multipart(payload, req, &save_path.to_string_lossy(), Some((1024,1024))).await
         .map_err(|_| e500())?;
 
+
     // Actualizar Usuario
-    usuario.imagen= picture_path;
+    usuario.imagen = picture_filename;
 
     // Query Actulizar Imagen DB
     let usuario_actualizado = actualizar_imagen_usuario_sqlx(&pool, usuario).await

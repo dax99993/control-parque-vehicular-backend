@@ -10,6 +10,7 @@ use crate::api_response::{ApiResponse, e500, e400, e403, e404};
 use crate::routes::users::sqlx::obtener_usuario_por_id_sqlx;
 use super::get::obtener_vehiculo_por_id_sqlx;
 
+use crate::upload::image::get_uploads_path;
 
 
 #[tracing::instrument(
@@ -133,16 +134,20 @@ pub async fn patch_vehicule_picture(
         .ok_or(e404().with_message("No se encontro el Vehiculo"))?;
 
     // Save image
-    let base_path = "./uploads/";
-    let picture_path = format!("vehicules/{}-{}.jpeg", vehiculo.vehiculo_id, Uuid::new_v4().to_string());
-    let save_path = format!("{base_path}{picture_path}");
+    let base_path = get_uploads_path()
+        .map_err(|_| e500())?
+        .join("vehicules");
 
-    handle_picture_multipart(payload, req, &save_path, None).await
+    let picture_filename = format!("{}-{}.jpeg", vehiculo.vehiculo_id, Uuid::new_v4().to_string());
+
+    let save_path = base_path.join(&picture_filename);
+
+    handle_picture_multipart(payload, req, &save_path.to_string_lossy(), None).await
         .map_err(|_| e500())?;
 
 
     // Actualizar vehiculo
-    vehiculo.imagen = picture_path;
+    vehiculo.imagen = picture_filename;
 
 
     // Query vehiculo actualizado DB

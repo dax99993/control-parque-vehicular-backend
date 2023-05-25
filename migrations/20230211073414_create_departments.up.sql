@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS departamentos
 
 INSERT INTO departamentos
 (nombre) VALUES
-('Sin asignar'),
 ('Laboratorio de Software Libre'),
 ('Recursos Humanos'),
 ('Becas');

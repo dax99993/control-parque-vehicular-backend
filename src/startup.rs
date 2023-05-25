@@ -177,6 +177,8 @@ async fn run(
                             .route("/{uuid}", web::delete().to(vehicules::delete::delete_vehicule))
                             .route("/{uuid}", web::patch().to(vehicules::patch::patch_vehicule))
                             .route("/picture/{uuid}", web::patch().to(vehicules::patch::patch_vehicule_picture))
+                            // Get image
+                            .route("/picture/{file}", web::get().to(vehicules::image::get_imagen_vehiculo))
 
                     )
                     .service(
@@ -185,6 +187,7 @@ async fn run(
                             // Me routes
                             .route("/me", web::get().to(users::me::get::user_get_me))
                             .route("/me", web::patch().to(users::me::patch::user_patch_me))
+                            .route("/me/picture", web::get().to(users::me::image::get_imagen_usuario))
                             .route("/me/picture", web::patch().to(users::me::patch::user_picture_patch_me))
                             .route("/me/change-password", web::post().to(users::me::password::change_user_password))
                             //.route("/me/picture", web::delete().to(users::me::delete::user_picture_delete_me))
@@ -194,6 +197,8 @@ async fn run(
                             .route("/{uuid}", web::delete().to(users::delete::users_delete_user_by_id))
                             .route("/{uuid}", web::patch().to(users::patch::user_patch))
                             .route("/picture/{uuid}", web::patch().to(users::patch::user_picture_patch))
+                            // Get image
+                            .route("/picture/{file}", web::get().to(users::image::get_imagen_usuario))
 
                     )
             )

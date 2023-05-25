@@ -25,11 +25,12 @@ pub async fn obtener_usuarios_sqlx(
         activo,
         verificado,
         imagen,
-        departamento,
+        COALESCE(departamentos.nombre, 'Sin asignar') as "departamento!",
         rol as "rol!: UsuarioRol",
         creado_en,
         modificado_en
-        FROM usuarios"#
+        FROM usuarios LEFT JOIN departamentos
+        ON usuarios.departamento = departamentos.id"#
         )
         .fetch_all(pool)
         .await
@@ -60,11 +61,13 @@ pub async fn obtener_usuario_por_id_sqlx(
         activo,
         verificado,
         imagen,
-        departamento,
+        COALESCE(departamentos.nombre, 'Sin asignar') as "departamento!",
         rol as "rol!: UsuarioRol",
         creado_en,
         modificado_en
-        FROM usuarios WHERE usuario_id = $1"#,
+        FROM usuarios LEFT JOIN departamentos
+        ON usuarios.departamento = departamentos.id
+        WHERE usuario_id = $1"#,
         usuario_id,
     )
     .fetch_optional(pool)
@@ -73,6 +76,7 @@ pub async fn obtener_usuario_por_id_sqlx(
 
     Ok(usuario)
 }
+
 
 #[tracing::instrument(
     name = "Query rol del usuario",
@@ -145,11 +149,12 @@ pub async fn actualizar_usuario_sqlx(
         numero_empleado = $4,
         activo = $5,
         verificado = $6,
-        departamento = $7,
+        departamento = d.id,
         rol = $8,
         email = $9,
         modificado_en = now()
-        WHERE usuario_id = $1
+        FROM departamentos d
+        WHERE usuario_id = $1 AND d.nombre = $7
         RETURNING 
             usuario_id,
             nombres,
@@ -160,7 +165,7 @@ pub async fn actualizar_usuario_sqlx(
             activo,
             verificado,
             imagen,
-            departamento,
+            d.nombre as "departamento!",
             rol as "rol!: UsuarioRol",
             creado_en,
             modificado_en
@@ -193,25 +198,30 @@ pub async fn actualizar_imagen_usuario_sqlx(
     let usuario = sqlx::query_as!(
         Usuario, 
         r#"
+        WITH actualizado AS(
         UPDATE usuarios
         SET
         imagen = $2,
         modificado_en = now()
         WHERE usuario_id = $1
-        RETURNING
-            usuario_id,
-            nombres,
-            apellidos,
-            email,
-            password_hash,
-            numero_empleado,
-            activo,
-            verificado,
-            imagen,
-            departamento,
-            rol as "rol!: UsuarioRol",
-            creado_en,
-            modificado_en
+        RETURNING *
+        )
+        SELECT 
+        usuario_id,
+        nombres,
+        apellidos,
+        email,
+        password_hash,
+        numero_empleado,
+        activo,
+        verificado,
+        imagen,
+        COALESCE(departamentos.nombre, 'Sin asignar') as "departamento!",
+        rol as "rol!: UsuarioRol",
+        creado_en,
+        modificado_en
+        FROM actualizado LEFT JOIN departamentos
+        ON actualizado.departamento = departamentos.id
         "#,
         usuario.usuario_id,
         usuario.imagen,

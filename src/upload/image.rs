@@ -111,3 +111,8 @@ pub async fn handle_picture_multipart(
 
     Ok(())
 }
+
+pub fn get_uploads_path() -> Result<std::path::PathBuf, std::io::Error> {
+    let dir = std::env::current_dir()?;
+    return Ok(dir.join("uploads"));
+}
