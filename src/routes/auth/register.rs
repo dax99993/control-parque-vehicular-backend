@@ -1,10 +1,10 @@
 use crate::api_response::{e401, e500, ApiResponse, e409};
-//use crate::models::user::SignupUser;
-use common::models::user::SignupUsuario;
 use crate::email_client::EmailClient;
 use crate::authentication::password::compute_password_hash;
 use crate::telemetry::spawn_blocking_with_tracing;
 use crate::startup::ApplicationBaseUrl;
+
+use common::models::user::SignupUsuario;
 use actix_web::{HttpResponse, web};
 use anyhow::Context;
 use rand::{thread_rng, Rng, distributions::Alphanumeric};
@@ -26,23 +26,11 @@ pub async fn signup_user(
     base_url: web::Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, actix_web::Error> {
 
-    /* Validar signup body*/
+    // Validar signup body
     let signup_usuario = body.into_inner();
     // Extraer los Error irregresarlos en un mensaje del api
     signup_usuario.validate().map_err(|_| e401().with_message("Invalid body"))?;
 
-    /* checar passwords match */
-    /*
-    if signup_user.password.expose_secret() !=
-       signup_user.re_password.expose_secret() {
-        return Err(e401().with_message("Passwords dont match"))?;
-    }
-
-    if signup_user.password.expose_secret().len() < 6 ||
-       signup_user.password.expose_secret().len() > 255 {
-        return Err(e401().with_message("Password should be between 6 and 255 characters"))?;
-    }
-    */
 
     let mut transaction = pool.begin()
         .await
@@ -57,11 +45,14 @@ pub async fn signup_user(
         return Err(e409().with_message("Ya existe usuario con ese correo electronico"))?
     }
 
+    dbg!("intentando insertar usuario", &signup_usuario);
     // insert new user in database
     let usuario_email = signup_usuario.email.clone();
     let usuario_id = insertar_usuario_sqlx(&mut transaction, signup_usuario)
         .await
         .map_err(|_| e500())?;
+
+    dbg!("usuario insertado");
 
     tracing::Span::current()
         .record("usuario_id", &tracing::field::display(&usuario_id));
@@ -123,7 +114,6 @@ async fn insertar_usuario_sqlx(
 ) -> Result<uuid::Uuid, anyhow::Error> {
 
     let password_hash = spawn_blocking_with_tracing(
-            //move || compute_password_hash(Secret::new(usuario.password))
             move || compute_password_hash(usuario.password.into())
         )
         .await?
@@ -146,7 +136,6 @@ async fn insertar_usuario_sqlx(
     .fetch_one(transaction)
     .await
     .context("Failed to performed a query to retrieve stored new user")?;
-    //.map(|row| row.user_id);
     
     Ok(row.usuario_id)
 }

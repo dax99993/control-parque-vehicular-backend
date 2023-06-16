@@ -121,7 +121,8 @@ async fn run(
     // Create the server
     let server = HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin("http://127.0.0.1:3000")
+            //.allowed_origin("http://127.0.0.1:3000")
+            .allow_any_origin()
             .allowed_methods(vec!["GET", "POST", "DELETE", "PATCH"])
             .allowed_headers(vec![actix_web::http::header::AUTHORIZATION,
                              actix_web::http::header::ACCEPT,

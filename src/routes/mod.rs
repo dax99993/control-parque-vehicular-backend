@@ -6,6 +6,7 @@ pub mod department;
 pub mod auth;
 pub mod users;
 pub mod vehicules;
+pub mod requests;
 
 pub mod struct_check;
 
