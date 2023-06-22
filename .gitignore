@@ -1,9 +1,11 @@
 /target
 .env
-uploads/vehicules/*
-!/uploads/vehicules/default-picture.jpeg
-uploads/users/*
-!/uploads/users/default-picture.jpeg
-uploads/requests/*
+#!/uploads/vehicules/default-picture.jpeg
+#!/uploads/users/default-picture.jpeg
+#!/uploads/
+#!/uploads/users/default**
+#/uploads/vehicules/*
+#/uploads/users/*
+#uploads/requests/*
 
 
