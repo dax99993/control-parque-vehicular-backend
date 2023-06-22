@@ -202,6 +202,22 @@ async fn run(
                             .route("/picture/{file}", web::get().to(users::image::get_imagen_usuario))
 
                     )
+                    .service(
+                        web::scope("/requests")
+                            // Admin routes
+                            /*
+                            .route("", web::get().to(users::get::users_get_all))
+                            .route("/{uuid}", web::get().to(users::get::users_get_user_by_id))
+                            .route("/{uuid}", web::delete().to(users::delete::users_delete_user_by_id))
+                            .route("/{uuid}", web::patch().to(users::patch::user_patch))
+                            .route("/picture/{uuid}", web::patch().to(users::patch::user_picture_patch))
+                            */
+                            // Normal routes
+                            .route("/new/{uuid}", web::post().to(crate::routes::requests::post::post_new_request))
+                            // Get image
+                            //.route("/picture/{file}", web::get().to(users::image::get_imagen_usuario))
+
+                    )
             )
             // Add all request extra data
             .app_data(db_pool.clone())
