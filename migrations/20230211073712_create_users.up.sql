@@ -13,8 +13,7 @@ CREATE TABLE IF NOT EXISTS usuarios
     numero_empleado SMALLINT NULL,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     verificado BOOLEAN NOT NULL DEFAULT FALSE,
-    departamento INTEGER NULL DEFAULT NULL REFERENCES departamentos(id) ON DELETE SET NULL,
-    --departamento INTEGER NULL REFERENCES departamentos(id) ON DELETE SET NULL,
+    departamento INTEGER NULL DEFAULT NULL REFERENCES departamentos(id) ON DELETE CASCADE,
     rol usuario_rol DEFAULT 'normal',
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     modificado_en TIMESTAMP NOT NULL DEFAULT NOW()

@@ -5,23 +5,21 @@ CREATE TYPE estado_peticion AS ENUM ('pendiente', 'aceptada', 'rechazada', 'fina
 CREATE TABLE IF NOT EXISTS peticiones
 (
     peticion_id UUID NOT NULL PRIMARY KEY,
-    usuario_id uuid NULL REFERENCES usuarios(usuario_id) ON DELETE SET NULL,
-    vehiculo_id uuid NULL REFERENCES vehiculos(vehiculo_id) ON DELETE SET NULL,
-    --estado TEXT NOT NULL DEFAULT 'pending' CHECK( estado IN ('approved', 'denied', 'pending', 'finished') ),
+    usuario_id uuid NOT NULL REFERENCES usuarios(usuario_id) ON DELETE CASCADE,
+    vehiculo_id uuid NOT NULL REFERENCES vehiculos(vehiculo_id) ON DELETE CASCADE,
     estado estado_peticion DEFAULT 'pendiente',
     inicio TIMESTAMP NOT NULL,
     finalizo TIMESTAMP NOT NULL,
     actividad_descripcion TEXT NOT NULL DEFAULT '',
     actividad_comentario TEXT NOT NULL DEFAULT '',
-    --feedback_comment TEXT NOT NULL DEFAULT '',
     kilometraje_inicial INT NOT NULL,
     CHECK (kilometraje_inicial > 0),
     kilometraje_final INT NOT NULL,
     CHECK (kilometraje_final > 0),
     CONSTRAINT kilometraje_final_valido CHECK (kilometraje_final >= kilometraje_inicial),
-    usuario_licencia_imagen TEXT NOT NULL,
-    vehiculo_imagen TEXT NULL,
-    gasolina_imagen TEXT NULL,
+    usuario_licencia_imagen TEXT NOT NULL DEFAULT '',
+    vehiculo_imagen TEXT NOT NULL DEFAULT '',
+    gasolina_imagen TEXT NOT NULL DEFAULT '',
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     modificado_en TIMESTAMP NOT NULL DEFAULT NOW()
 );

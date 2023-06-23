@@ -12,17 +12,11 @@ CREATE TABLE IF NOT EXISTS vehiculos
     numero_placa TEXT NOT NULL DEFAULT '',
     nombre_economico TEXT NOT NULL DEFAULT '',
     numero_tarjeta TEXT NOT NULL DEFAULT '',
-    --latitud DECIMAL(9, 6) DEFAULT 22.761202,
-    --longitud DECIMAL(9, 6) DEFAULT -102.579088,
-    --estado TEXT NOT NULL DEFAULT 'available' CHECK( estado IN ('available', 'occupied', 'maintenance') ),
-    --kilometraje INT NOT NULL DEFAULT 0,
     estado estado_vehiculo DEFAULT 'disponible',
     activo BOOLEAN NOT NULL DEFAULT TRUE,
     imagen TEXT NOT NULL DEFAULT 'default-vehicule.jpeg',
     creado_en TIMESTAMP NOT NULL DEFAULT NOW(),
     modificado_en TIMESTAMP NOT NULL DEFAULT NOW()
-    --CONSTRAINT bounded_latitude CHECK (latitude >= -90.0 AND latitude < 90.0),
-    --CONSTRAINT bounded_longitude CHECK (latitude >= -180.0 AND latitude < 180.0)
 );
 
 
